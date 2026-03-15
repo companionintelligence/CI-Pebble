@@ -33,6 +33,14 @@
 /* ---- Buffer sizes --------------------------------------------------------- */
 #define MAX_RESULT_LEN 256
 
+/* ---- Result window layout constants -------------------------------------- */
+/* Extra padding added to text layer height so the last line is never clipped
+ * (text_layer_get_content_size may underestimate before the first render). */
+#define TEXT_HEIGHT_PADDING   10
+/* Additional vertical padding added on top of the text height when setting
+ * the scroll layer's content size. */
+#define SCROLL_CONTENT_PADDING 8
+
 /* ---- Predefined agent questions ------------------------------------------ */
 static const char *s_agent_questions[] = {
   "What are my top goals?",
@@ -147,6 +155,21 @@ static void send_command(uint8_t cmd, const char *query) {
    Result / scroll window
    ========================================================================== */
 
+/**
+ * Resize the result text layer and update the scroll layer's content size to
+ * match.  Called both from result_window_load (first render) and from
+ * result_window_push when a new result arrives while the window is already
+ * visible.
+ */
+static void result_update_sizing(GRect bounds) {
+  GSize content_size = text_layer_get_content_size(s_result_text);
+  int text_h = content_size.h + TEXT_HEIGHT_PADDING;
+  text_layer_set_size(s_result_text, GSize(bounds.size.w - 8, text_h));
+  scroll_layer_set_content_size(s_scroll_layer,
+                                GSize(bounds.size.w,
+                                      text_h + SCROLL_CONTENT_PADDING));
+}
+
 static void result_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
@@ -158,17 +181,14 @@ static void result_window_load(Window *window) {
   text_layer_set_overflow_mode(s_result_text, GTextOverflowModeWordWrap);
   text_layer_set_text(s_result_text, s_result_buf);
 
-  /* Shrink layer to actual content height */
-  GSize content_size = text_layer_get_content_size(s_result_text);
-  text_layer_set_size(s_result_text, GSize(bounds.size.w - 8, content_size.h));
-
   /* Scroll layer wrapping the text */
   s_scroll_layer = scroll_layer_create(bounds);
   scroll_layer_set_click_config_onto_window(s_scroll_layer, window);
-  scroll_layer_set_content_size(s_scroll_layer,
-                                GSize(bounds.size.w, content_size.h + 8));
   scroll_layer_add_child(s_scroll_layer, text_layer_get_layer(s_result_text));
   layer_add_child(root, scroll_layer_get_layer(s_scroll_layer));
+
+  /* Size text and scroll layers to fit content */
+  result_update_sizing(bounds);
 }
 
 static void result_window_unload(Window *window) {
@@ -180,6 +200,10 @@ static void result_window_unload(Window *window) {
 
 /**
  * Copy text into the result buffer then push (or re-use) the result window.
+ *
+ * If the result window is already on the stack (s_result_text is non-NULL),
+ * update the text layer in-place and recalculate the scroll content size so
+ * the new content is visible without re-pushing the window.
  */
 static void result_window_push(const char *text) {
   strncpy(s_result_buf, text, MAX_RESULT_LEN - 1);
@@ -192,7 +216,18 @@ static void result_window_push(const char *text) {
       .unload = result_window_unload,
     });
   }
-  window_stack_push(s_result_window, true /* animated */);
+
+  if (s_result_text) {
+    /* Window is already loaded/visible: update the text and resize in-place */
+    text_layer_set_text(s_result_text, s_result_buf);
+    Layer *root = window_get_root_layer(s_result_window);
+    GRect bounds = layer_get_bounds(root);
+    result_update_sizing(bounds);
+    /* Scroll back to the top so the user sees the new result from the start */
+    scroll_layer_set_content_offset(s_scroll_layer, GPointZero, true);
+  } else {
+    window_stack_push(s_result_window, true /* animated */);
+  }
 }
 
 
