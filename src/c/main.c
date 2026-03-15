@@ -374,7 +374,7 @@ static void init(void) {
   });
   window_stack_push(s_main_window, true /* animated */);
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app initialised");
+  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app initialized");
 }
 
 static void deinit(void) {
@@ -382,7 +382,7 @@ static void deinit(void) {
   if (s_result_window)   { window_destroy(s_result_window);   }
   if (s_question_window) { window_destroy(s_question_window); }
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app deinitialised");
+  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app deinitialized");
 }
 
 int main(void) {

@@ -153,6 +153,7 @@ function formatEvents(events) {
     if (ev.timestamp) {
       try {
         var d = new Date(ev.timestamp);
+        /* getMonth() returns 0-based month (0 = January), so add 1 */
         line += (d.getMonth() + 1) + '/' + d.getDate() + ': ';
       } catch (e) {
         /* ignore date parse errors */
