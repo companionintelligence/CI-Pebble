@@ -1,0 +1,22 @@
+{
+  "uuid": "c1a4e5b7-8c3d-4f2e-9a1b-6d7e8f9a0b1c",
+  "shortName": "CI Memory",
+  "longName": "CI Digital Memory",
+  "companyName": "Companion Intelligence",
+  "versionLabel": "1.0",
+  "sdkVersion": "3",
+  "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery"],
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {
+    "KEY_COMMAND": 0,
+    "KEY_QUERY": 1,
+    "KEY_RESULT": 2,
+    "KEY_ERROR": 3,
+    "KEY_STATUS": 4
+  },
+  "resources": {
+    "media": []
+  }
+}
