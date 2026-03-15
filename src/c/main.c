@@ -144,6 +144,7 @@ static void send_command(uint8_t cmd, const char *query) {
   AppMessageResult result = app_message_outbox_begin(&iter);
   if (result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to open outbox: %d", (int)result);
+    s_last_outbox_passive = false;
     return;
   }
 
@@ -170,6 +171,7 @@ static void send_passive_command(uint8_t cmd, const char *query) {
   if (result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Passive outbox unavailable: %d", (int)result);
     s_last_outbox_passive = false;
+    s_last_outbox_passive = false;
     return;
   }
 
@@ -181,6 +183,7 @@ static void send_passive_command(uint8_t cmd, const char *query) {
   s_last_outbox_passive = true;
   result = app_message_outbox_send();
   if (result != APP_MSG_OK) {
+    s_last_outbox_passive = false;
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Passive send skipped: %d", (int)result);
     s_last_outbox_passive = false;
   }
