@@ -146,7 +146,7 @@ function buildConfigurationPage() {
     '<label for="ci_host">CI-Server URL</label>' +
     '<input id="ci_host" type="url" value="' + escapeHTML(getCIHost()) + '">' +
     '<label for="ci_auth_token">Bearer token</label>' +
-    '<input id="ci_auth_token" type="text" value="' + escapeHTML(getAuthToken()) + '">' +
+    '<input id="ci_auth_token" type="password" autocomplete="off" value="' + escapeHTML(getAuthToken()) + '">' +
     '<label for="ollama_url">Ollama URL</label>' +
     '<input id="ollama_url" type="url" value="' + escapeHTML(getOllamaURL()) + '">' +
     '<button id="save">Save</button>' +
@@ -540,6 +540,18 @@ function getNotificationTimestamp(notification) {
   return notification.timestamp || notification.created_at || notification.date || '';
 }
 
+/**
+ * Convert a notification timestamp string into milliseconds since epoch for
+ * reliable ordering across ISO-8601 and RFC-style date formats.
+ *
+ * @param {string} timestamp - Raw timestamp string from the CI-Server.
+ * @returns {?number} Milliseconds since epoch, or null when parsing fails.
+ */
+function getComparableTimestamp(timestamp) {
+  var parsed = Date.parse(timestamp);
+  return isNaN(parsed) ? null : parsed;
+}
+
 function pollNotifications() {
   var url = joinURL(getCIHost(), NOTIFICATIONS_PATH);
   var since = getNotificationCursor();
@@ -559,6 +571,7 @@ function pollNotifications() {
         var data = JSON.parse(xhr.responseText);
         var notifications = Array.isArray(data) ? data : (data.notifications || []);
         var latestTimestamp = since;
+        var latestTimestampValue = getComparableTimestamp(since);
         var i;
 
         for (i = 0; i < notifications.length; i++) {
@@ -567,8 +580,11 @@ function pollNotifications() {
                       notification.body || notification.message || '');
 
           var timestamp = getNotificationTimestamp(notification);
-          if (timestamp && (!latestTimestamp || timestamp > latestTimestamp)) {
+          var timestampValue = getComparableTimestamp(timestamp);
+          if (timestampValue !== null &&
+              (latestTimestampValue === null || timestampValue > latestTimestampValue)) {
             latestTimestamp = timestamp;
+            latestTimestampValue = timestampValue;
           }
         }
 
@@ -647,9 +663,14 @@ Pebble.addEventListener('webviewclosed', function(e) {
 
   try {
     var settings = JSON.parse(decodeURIComponent(e.response));
+    var previousCIHost = getCIHost();
+    var nextCIHost = normalizeBaseURL(settings.ci_host);
     saveSetting(STORAGE_CI_HOST, settings.ci_host, normalizeBaseURL);
     saveSetting(STORAGE_AUTH_TOKEN, settings.ci_auth_token, trimString);
     saveSetting(STORAGE_OLLAMA_URL, settings.ollama_url, normalizeBaseURL);
+    if (nextCIHost !== previousCIHost) {
+      localStorage.removeItem(STORAGE_NOTIFICATION_CURSOR);
+    }
     restartBackgroundTasks();
   } catch (err) {
     console.log('Configuration parse error: ' + err);
