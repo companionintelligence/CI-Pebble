@@ -1,6 +1,6 @@
-# CI-Pebble
+# Companion Pebble
 
-A Pebble smartwatch app that acts as a wearable interface for the
+Companion Pebble smartwatch app that acts as a wearable interface for the
 [Companion Intelligence (CI) Digital Memory server](https://github.com/companionintelligence/CI-Server)
 and the [Ollama](https://ollama.com) local LLM runtime.
 
@@ -193,14 +193,3 @@ Command codes sent via `KEY_COMMAND`:
 | Notifications never arrive | Confirm the CI-Server exposes `GET /api/notifications` and returns a JSON array (or `{ notifications: [...] }`) with `timestamp`, `title`, and `body` fields. |
 | Passive logs are incomplete | The companion posts step counts from the watch and adds phone geolocation when permission is available; denied phone location permission results in health-only uploads. |
 | "No cached result" on watch | The watch cache is populated only after the first successful fetch. Connect the phone and run "Recall Memory" first. |
-
----
-
-## Implementation roadmap
-
-- [x] Pebble C app – main menu, result window, question selector, AppMessage, persistent storage
-- [x] PebbleKit JS – CI-Server XHR, Ollama fetch, localStorage caching, error handling
-- [x] CI-Server authentication (OAuth / JWT login flow via configuration page)
-- [x] Dynamic question input (e.g. Pebble Dictation API on supported hardware)
-- [x] Passive health / location logging to CI-Server
-- [x] Push notifications from CI-Server via phone
