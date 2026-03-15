@@ -61,6 +61,7 @@ var MAX_MSG_LEN = 252;
 /* ---- Background task cadence (ms) ---------------------------------------- */
 var PASSIVE_LOG_INTERVAL = 15 * 60 * 1000;
 var NOTIFICATION_POLL_INTERVAL = 60 * 1000;
+var LOCATION_CACHE_MAX_AGE = 60 * 1000;
 
 var passiveLogTimer = null;
 var notificationPollTimer = null;
@@ -510,7 +511,7 @@ function sendPassiveLog(healthQuery) {
       },
       {
         enableHighAccuracy: false,
-        maximumAge: PASSIVE_LOG_INTERVAL,
+        maximumAge: LOCATION_CACHE_MAX_AGE,
         timeout: 5000
       }
     );
