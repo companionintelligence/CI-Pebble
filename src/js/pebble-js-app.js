@@ -29,16 +29,22 @@ var KEY_STATUS  = 4;
 /* ---- Command values ------------------------------------------------------ */
 var CMD_FETCH_EVENTS = 1;
 var CMD_ASK_AGENT    = 2;
+var CMD_LOG_PASSIVE  = 3;
 
 /* ---- localStorage keys --------------------------------------------------- */
 var STORAGE_CI_HOST    = 'ci_host';
 var STORAGE_AUTH_TOKEN = 'ci_auth_token';
 var STORAGE_OLLAMA_URL = 'ollama_url';
 var STORAGE_CACHE_KEY  = 'last_result';
+var STORAGE_NOTIFICATION_CURSOR = 'notification_cursor';
 
 /* ---- Defaults (user can override via localStorage from a config page) ---- */
 var DEFAULT_CI_HOST    = 'https://ci-server.local';
 var DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+
+/* ---- CI-Server endpoints ------------------------------------------------- */
+var PASSIVE_LOG_PATH   = '/api/passive-log';
+var NOTIFICATIONS_PATH = '/api/notifications';
 
 /* ---- LLM model to use (matches CI-Server .env OLLAMA_HOST setting) ------- */
 var OLLAMA_MODEL = 'gemma3';
@@ -46,9 +52,19 @@ var OLLAMA_MODEL = 'gemma3';
 /* ---- Request timeout values (ms) ---------------------------------------- */
 var CI_TIMEOUT     = 10000;
 var OLLAMA_TIMEOUT = 30000;
+var PASSIVE_LOG_TIMEOUT = 8000;
+var NOTIFICATION_TIMEOUT = 8000;
 
 /* ---- Maximum characters to send in a single AppMessage ------------------- */
 var MAX_MSG_LEN = 252;
+
+/* ---- Background task cadence (ms) ---------------------------------------- */
+var PASSIVE_LOG_INTERVAL = 15 * 60 * 1000;
+var NOTIFICATION_POLL_INTERVAL = 60 * 1000;
+var LOCATION_CACHE_MAX_AGE = 60 * 1000;
+
+var passiveLogTimer = null;
+var notificationPollTimer = null;
 
 
 /* ==========================================================================
@@ -56,15 +72,95 @@ var MAX_MSG_LEN = 252;
    ========================================================================== */
 
 function getCIHost() {
-  return localStorage.getItem(STORAGE_CI_HOST) || DEFAULT_CI_HOST;
+  return normalizeBaseURL(localStorage.getItem(STORAGE_CI_HOST) || DEFAULT_CI_HOST);
 }
 
 function getOllamaURL() {
-  return localStorage.getItem(STORAGE_OLLAMA_URL) || DEFAULT_OLLAMA_URL;
+  return normalizeBaseURL(localStorage.getItem(STORAGE_OLLAMA_URL) || DEFAULT_OLLAMA_URL);
 }
 
 function getAuthToken() {
-  return localStorage.getItem(STORAGE_AUTH_TOKEN) || '';
+  return trimString(localStorage.getItem(STORAGE_AUTH_TOKEN) || '');
+}
+
+function trimString(value) {
+  return String(value || '').replace(/^\s+|\s+$/g, '');
+}
+
+function normalizeBaseURL(url) {
+  return trimString(url).replace(/\/+$/, '');
+}
+
+function joinURL(base, path) {
+  return normalizeBaseURL(base) + path;
+}
+
+function escapeHTML(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function saveSetting(key, value, normalizer) {
+  var nextValue = normalizer ? normalizer(value) : trimString(value);
+  if (nextValue) {
+    localStorage.setItem(key, nextValue);
+  } else {
+    localStorage.removeItem(key);
+  }
+}
+
+function setAuthHeader(xhr) {
+  var token = getAuthToken();
+  if (token) {
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+  }
+}
+
+function getNotificationCursor() {
+  return localStorage.getItem(STORAGE_NOTIFICATION_CURSOR) || '';
+}
+
+function setNotificationCursor(cursor) {
+  if (cursor) {
+    localStorage.setItem(STORAGE_NOTIFICATION_CURSOR, cursor);
+  }
+}
+
+function buildConfigurationPage() {
+  return '<!DOCTYPE html>' +
+    '<html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>CI Memory Settings</title>' +
+    '<style>' +
+    'body{font-family:sans-serif;padding:16px;background:#f3f3f3;color:#222;}' +
+    'label{display:block;font-size:12px;font-weight:bold;margin:12px 0 4px;}' +
+    'input{box-sizing:border-box;width:100%;padding:10px;border:1px solid #bbb;border-radius:4px;}' +
+    'button{margin-top:18px;width:100%;padding:12px;border:0;border-radius:4px;background:#0055ff;color:#fff;font-size:16px;}' +
+    'p{font-size:12px;line-height:1.4;color:#555;}' +
+    '</style></head><body>' +
+    '<h2>CI Digital Memory</h2>' +
+    '<p>Configure CI-Server authentication, Ollama access, and the background sync endpoints used by the companion app.</p>' +
+    '<label for="ci_host">CI-Server URL</label>' +
+    '<input id="ci_host" type="url" value="' + escapeHTML(getCIHost()) + '">' +
+    '<label for="ci_auth_token">Bearer token</label>' +
+    '<input id="ci_auth_token" type="password" autocomplete="off" value="' + escapeHTML(getAuthToken()) + '">' +
+    '<label for="ollama_url">Ollama URL</label>' +
+    '<input id="ollama_url" type="url" value="' + escapeHTML(getOllamaURL()) + '">' +
+    '<button id="save">Save</button>' +
+    '<script>(function(){' +
+    'function value(id){return document.getElementById(id).value;}' +
+    'document.getElementById("save").addEventListener("click", function(){' +
+    'var payload={' +
+    'ci_host:value("ci_host"),' +
+    'ci_auth_token:value("ci_auth_token"),' +
+    'ollama_url:value("ollama_url")' +
+    '};' +
+    'document.location="pebblejs://close#" + encodeURIComponent(JSON.stringify(payload));' +
+    '});' +
+    '}());<\/script></body></html>';
 }
 
 function cacheResult(result) {
@@ -129,6 +225,14 @@ function sendStatusToWatch(status) {
   );
 }
 
+function notifyWatch(title, body) {
+  if (Pebble.showSimpleNotificationOnPebble) {
+    Pebble.showSimpleNotificationOnPebble(truncate(title), truncate(body || ''));
+  } else {
+    sendStatusToWatch(title);
+  }
+}
+
 
 /* ==========================================================================
    CI-Server integration
@@ -176,7 +280,7 @@ function formatEvents(events) {
  * the watch.  Falls back to the locally cached result on network failure.
  */
 function fetchMemoryEvents() {
-  var url = getCIHost() + '/api/events';
+  var url = joinURL(getCIHost(), '/api/events');
   console.log('Fetching events from: ' + url);
   sendStatusToWatch('Fetching...');
 
@@ -217,11 +321,7 @@ function fetchMemoryEvents() {
   };
 
   xhr.open('GET', url, true);
-
-  var token = getAuthToken();
-  if (token) {
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-  }
+  setAuthHeader(xhr);
 
   try {
     xhr.send();
@@ -243,7 +343,7 @@ function fetchMemoryEvents() {
  * @param {string} question – question typed/selected on the watch
  */
 function askOllamaAgent(question) {
-  var url = getOllamaURL() + '/api/chat';
+  var url = joinURL(getOllamaURL(), '/api/chat');
   console.log('Asking Ollama (' + OLLAMA_MODEL + '): ' + question);
   sendStatusToWatch('Thinking...');
 
@@ -317,6 +417,224 @@ function askOllamaAgent(question) {
 
 
 /* ==========================================================================
+   Passive health/location logging
+   ========================================================================== */
+
+function parseHealthQuery(query) {
+  var result = {};
+  var parts = String(query || '').split('&');
+  var i;
+
+  for (i = 0; i < parts.length; i++) {
+    if (!parts[i]) {
+      continue;
+    }
+
+    var pair = parts[i].split('=');
+    var key = pair[0];
+    var value = pair.length > 1 ? parseInt(pair[1], 10) : null;
+
+    if (key) {
+      result[key] = isNaN(value) ? pair[1] : value;
+    }
+  }
+
+  return result;
+}
+
+function buildPassiveLogPayload(healthQuery, position) {
+  var payload = {
+    timestamp: new Date().toISOString()
+  };
+  var key;
+  var healthMetrics = parseHealthQuery(healthQuery);
+
+  for (key in healthMetrics) {
+    if (healthMetrics.hasOwnProperty(key)) {
+      payload[key] = healthMetrics[key];
+    }
+  }
+
+  if (position && position.coords) {
+    payload.latitude = Number(position.coords.latitude.toFixed(6));
+    payload.longitude = Number(position.coords.longitude.toFixed(6));
+    payload.accuracy_m = Math.round(position.coords.accuracy || 0);
+  }
+
+  return payload;
+}
+
+function postPassiveLog(payload) {
+  var url = joinURL(getCIHost(), PASSIVE_LOG_PATH);
+  var xhr = new XMLHttpRequest();
+
+  xhr.timeout = PASSIVE_LOG_TIMEOUT;
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  setAuthHeader(xhr);
+
+  xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      console.log('Passive log uploaded');
+    } else {
+      console.log('Passive log failed: ' + xhr.status);
+    }
+  };
+
+  xhr.onerror = function() {
+    console.log('Passive log network error');
+  };
+
+  xhr.ontimeout = function() {
+    console.log('Passive log timed out');
+  };
+
+  try {
+    xhr.send(JSON.stringify(payload));
+  } catch (e) {
+    console.log('Failed to send passive log: ' + e);
+  }
+}
+
+function sendPassiveLog(healthQuery) {
+  var nav = typeof navigator !== 'undefined' ? navigator : null;
+  var geolocation = nav && nav.geolocation;
+
+  if (geolocation && geolocation.getCurrentPosition) {
+    geolocation.getCurrentPosition(
+      function(position) {
+        postPassiveLog(buildPassiveLogPayload(healthQuery, position));
+      },
+      function(error) {
+        console.log('Geolocation unavailable: ' + (error && error.message ? error.message : error));
+        postPassiveLog(buildPassiveLogPayload(healthQuery, null));
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: LOCATION_CACHE_MAX_AGE,
+        timeout: 5000
+      }
+    );
+  } else {
+    postPassiveLog(buildPassiveLogPayload(healthQuery, null));
+  }
+}
+
+function schedulePassiveLog() {
+  if (passiveLogTimer) {
+    clearTimeout(passiveLogTimer);
+  }
+
+  passiveLogTimer = setTimeout(function() {
+    sendPassiveLog('');
+    schedulePassiveLog();
+  }, PASSIVE_LOG_INTERVAL);
+}
+
+
+/* ==========================================================================
+   CI-Server notifications
+   ========================================================================== */
+
+function getNotificationTimestamp(notification) {
+  return notification.timestamp || notification.created_at || notification.date || '';
+}
+
+/**
+ * Convert a notification timestamp string into milliseconds since epoch for
+ * reliable ordering across ISO-8601 and RFC-style date formats.
+ *
+ * @param {string} timestamp - Raw timestamp string from the CI-Server.
+ * @returns {?number} Milliseconds since epoch, or null when parsing fails.
+ */
+function getComparableTimestamp(timestamp) {
+  var parsed = Date.parse(timestamp);
+  return isNaN(parsed) ? null : parsed;
+}
+
+function pollNotifications() {
+  var url = joinURL(getCIHost(), NOTIFICATIONS_PATH);
+  var since = getNotificationCursor();
+  var xhr = new XMLHttpRequest();
+
+  if (since) {
+    url += '?since=' + encodeURIComponent(since);
+  }
+
+  xhr.timeout = NOTIFICATION_TIMEOUT;
+  xhr.open('GET', url, true);
+  setAuthHeader(xhr);
+
+  xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        var notifications = Array.isArray(data) ? data : (data.notifications || []);
+        var latestTimestamp = since;
+        var latestTimestampValue = getComparableTimestamp(since);
+        var i;
+
+        for (i = 0; i < notifications.length; i++) {
+          var notification = notifications[i];
+          notifyWatch(notification.title || 'CI Update',
+                      notification.body || notification.message || '');
+
+          var timestamp = getNotificationTimestamp(notification);
+          var timestampValue = getComparableTimestamp(timestamp);
+          if (timestampValue !== null &&
+              (latestTimestampValue === null || timestampValue > latestTimestampValue)) {
+            latestTimestamp = timestamp;
+            latestTimestampValue = timestampValue;
+          }
+        }
+
+        if (!latestTimestamp && notifications.length > 0) {
+          latestTimestamp = new Date().toISOString();
+        }
+        setNotificationCursor(latestTimestamp);
+      } catch (e) {
+        console.log('Notification parse error: ' + e);
+      }
+    } else {
+      console.log('Notification poll failed: ' + xhr.status);
+    }
+  };
+
+  xhr.onerror = function() {
+    console.log('Notification poll network error');
+  };
+
+  xhr.ontimeout = function() {
+    console.log('Notification poll timed out');
+  };
+
+  try {
+    xhr.send();
+  } catch (e) {
+    console.log('Failed to poll notifications: ' + e);
+  }
+}
+
+function scheduleNotificationPoll() {
+  if (notificationPollTimer) {
+    clearTimeout(notificationPollTimer);
+  }
+
+  notificationPollTimer = setTimeout(function() {
+    pollNotifications();
+    scheduleNotificationPoll();
+  }, NOTIFICATION_POLL_INTERVAL);
+}
+
+function restartBackgroundTasks() {
+  sendPassiveLog('');
+  schedulePassiveLog();
+  scheduleNotificationPoll();
+  pollNotifications();
+}
+
+
+/* ==========================================================================
    Pebble event listeners
    ========================================================================== */
 
@@ -328,6 +646,34 @@ Pebble.addEventListener('ready', function() {
   }
   if (!localStorage.getItem(STORAGE_OLLAMA_URL)) {
     console.log('No Ollama URL configured; using default: ' + DEFAULT_OLLAMA_URL);
+  }
+
+  restartBackgroundTasks();
+});
+
+Pebble.addEventListener('showConfiguration', function() {
+  Pebble.openURL('data:text/html;charset=utf-8,' +
+                 encodeURIComponent(buildConfigurationPage()));
+});
+
+Pebble.addEventListener('webviewclosed', function(e) {
+  if (!e || !e.response || e.response === 'CANCELLED') {
+    return;
+  }
+
+  try {
+    var settings = JSON.parse(decodeURIComponent(e.response));
+    var previousCIHost = getCIHost();
+    var nextCIHost = normalizeBaseURL(settings.ci_host);
+    saveSetting(STORAGE_CI_HOST, settings.ci_host, normalizeBaseURL);
+    saveSetting(STORAGE_AUTH_TOKEN, settings.ci_auth_token, trimString);
+    saveSetting(STORAGE_OLLAMA_URL, settings.ollama_url, normalizeBaseURL);
+    if (nextCIHost !== previousCIHost) {
+      localStorage.removeItem(STORAGE_NOTIFICATION_CURSOR);
+    }
+    restartBackgroundTasks();
+  } catch (err) {
+    console.log('Configuration parse error: ' + err);
   }
 });
 
@@ -347,6 +693,10 @@ Pebble.addEventListener('appmessage', function(e) {
       askOllamaAgent(question);
       break;
     }
+
+    case CMD_LOG_PASSIVE:
+      sendPassiveLog(payload[KEY_QUERY] || '');
+      break;
 
     default:
       console.log('Unknown command: ' + command);
