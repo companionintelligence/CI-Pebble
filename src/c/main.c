@@ -26,6 +26,7 @@
 /* ---- Command values sent via KEY_COMMAND --------------------------------- */
 #define CMD_FETCH_EVENTS 1
 #define CMD_ASK_AGENT    2
+#define CMD_LOG_PASSIVE  3
 
 /* ---- Persistent storage keys --------------------------------------------- */
 #define PERSIST_KEY_LAST_RESULT 0
@@ -66,6 +67,16 @@ static char         s_result_buf[MAX_RESULT_LEN];
 
 /* ---- Question selection menu --------------------------------------------- */
 static MenuLayer *s_question_menu;
+
+#if defined(PBL_MICROPHONE)
+static DictationSession *s_dictation_session;
+#endif
+
+#if defined(PBL_HEALTH)
+static AppTimer *s_health_bootstrap_timer;
+#endif
+
+static bool s_last_outbox_passive;
 
 /* ---- Forward declarations ------------------------------------------------ */
 static void result_window_push(const char *text);
@@ -109,13 +120,15 @@ static void inbox_dropped_handler(AppMessageResult reason, void *context) {
 static void outbox_failed_handler(DictionaryIterator *iter,
                                    AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed, reason: %d", (int)reason);
-  if (s_status_text) {
+  if (s_status_text && !s_last_outbox_passive) {
     text_layer_set_text(s_status_text, "Send failed");
   }
+  s_last_outbox_passive = false;
 }
 
 static void outbox_sent_handler(DictionaryIterator *iter, void *context) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Outbox message sent successfully");
+  s_last_outbox_passive = false;
 }
 
 
@@ -139,6 +152,7 @@ static void send_command(uint8_t cmd, const char *query) {
     dict_write_cstring(iter, KEY_QUERY, query);
   }
 
+  s_last_outbox_passive = false;
   result = app_message_outbox_send();
   if (result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to send message: %d", (int)result);
@@ -147,6 +161,26 @@ static void send_command(uint8_t cmd, const char *query) {
     if (s_status_text) {
       text_layer_set_text(s_status_text, "Loading...");
     }
+  }
+}
+
+static void send_passive_command(uint8_t cmd, const char *query) {
+  DictionaryIterator *iter;
+  AppMessageResult result = app_message_outbox_begin(&iter);
+  if (result != APP_MSG_OK) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Passive outbox unavailable: %d", (int)result);
+    return;
+  }
+
+  dict_write_uint8(iter, KEY_COMMAND, cmd);
+  if (query) {
+    dict_write_cstring(iter, KEY_QUERY, query);
+  }
+
+  s_last_outbox_passive = true;
+  result = app_message_outbox_send();
+  if (result != APP_MSG_OK) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Passive send skipped: %d", (int)result);
   }
 }
 
@@ -232,23 +266,109 @@ static void result_window_push(const char *text) {
 
 
 /* ==========================================================================
+   Optional device services
+   ========================================================================== */
+
+#if defined(PBL_MICROPHONE)
+static void dictation_session_callback(DictationSession *session,
+                                       DictationSessionStatus status,
+                                       char *transcription, void *context) {
+  if (status == DictationSessionStatusSuccess && transcription &&
+      transcription[0] != '\0') {
+    send_command(CMD_ASK_AGENT, transcription);
+  } else if (s_status_text) {
+    text_layer_set_text(s_status_text,
+                        status == DictationSessionStatusFailureTranscription
+                            ? "Dictation failed"
+                            : "Dictation canceled");
+  }
+}
+
+static void start_dictation_session(void) {
+  if (!s_dictation_session) {
+    s_dictation_session = dictation_session_create(MAX_RESULT_LEN - 1,
+                                                   dictation_session_callback,
+                                                   NULL);
+  }
+
+  if (s_status_text) {
+    text_layer_set_text(s_status_text, "Listening...");
+  }
+  dictation_session_start(s_dictation_session);
+}
+#endif
+
+#if defined(PBL_HEALTH)
+static void send_health_snapshot(void) {
+  char payload[32];
+  const HealthValue steps = health_service_sum_today(HealthMetricStepCount);
+
+  snprintf(payload, sizeof(payload), "steps=%ld", (long)steps);
+  send_passive_command(CMD_LOG_PASSIVE, payload);
+}
+
+static void health_event_handler(HealthEventType event, void *context) {
+  switch (event) {
+    case HealthEventMovementUpdate:
+    case HealthEventSignificantUpdate:
+    case HealthEventSleepUpdate:
+      send_health_snapshot();
+      break;
+    default:
+      break;
+  }
+}
+
+static void health_bootstrap_callback(void *context) {
+  s_health_bootstrap_timer = NULL;
+  send_health_snapshot();
+}
+#endif
+
+
+/* ==========================================================================
    Question selection window
    ========================================================================== */
 
 static uint16_t question_menu_num_rows(MenuLayer *menu_layer,
                                        uint16_t section_index, void *context) {
+#if defined(PBL_MICROPHONE)
+  return NUM_QUESTIONS + 1;
+#else
   return NUM_QUESTIONS;
+#endif
 }
 
 static void question_menu_draw_row(GContext *ctx, const Layer *cell_layer,
                                    MenuIndex *cell_index, void *context) {
+#if defined(PBL_MICROPHONE)
+  if (cell_index->row == 0) {
+    menu_cell_basic_draw(ctx, cell_layer, "Speak question",
+                         "Use Pebble Dictation", NULL);
+    return;
+  }
+  const int question_index = cell_index->row - 1;
+#else
+  const int question_index = cell_index->row;
+#endif
+
   menu_cell_basic_draw(ctx, cell_layer,
-                       s_agent_questions[cell_index->row], NULL, NULL);
+                       s_agent_questions[question_index], NULL, NULL);
 }
 
 static void question_menu_select(MenuLayer *menu_layer, MenuIndex *cell_index,
-                                  void *context) {
+                                   void *context) {
+#if defined(PBL_MICROPHONE)
+  if (cell_index->row == 0) {
+    window_stack_pop(true /* animated */);
+    start_dictation_session();
+    return;
+  }
+  const char *question = s_agent_questions[cell_index->row - 1];
+#else
   const char *question = s_agent_questions[cell_index->row];
+#endif
+
   APP_LOG(APP_LOG_LEVEL_INFO, "Question selected: %s", question);
   send_command(CMD_ASK_AGENT, question);
   window_stack_pop(true /* animated */);
@@ -409,10 +529,28 @@ static void init(void) {
   });
   window_stack_push(s_main_window, true /* animated */);
 
+#if defined(PBL_HEALTH)
+  health_service_events_subscribe(health_event_handler, NULL);
+  s_health_bootstrap_timer = app_timer_register(3000,
+                                                health_bootstrap_callback,
+                                                NULL);
+#endif
+
   APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app initialized");
 }
 
 static void deinit(void) {
+#if defined(PBL_HEALTH)
+  if (s_health_bootstrap_timer) {
+    app_timer_cancel(s_health_bootstrap_timer);
+  }
+  health_service_events_unsubscribe();
+#endif
+#if defined(PBL_MICROPHONE)
+  if (s_dictation_session) {
+    dictation_session_destroy(s_dictation_session);
+  }
+#endif
   window_destroy(s_main_window);
   if (s_result_window)   { window_destroy(s_result_window);   }
   if (s_question_window) { window_destroy(s_question_window); }
