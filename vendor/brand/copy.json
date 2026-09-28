@@ -1,0 +1,235 @@
+{
+  "$schema": "./copy.schema.json",
+  "$comment": "Companion Intelligence COPY TOKENS — the only place a product name, tagline, price, spec, URL or marketing claim is typed. Every surface (microcopy, marketing sections, MESSAGING.md, email, decks, docs) references these by key; nothing restates them. A fact that can change carries verifiedAt + source so the next audit knows what it is checking against.",
+  "version": "1.0.0",
+  "company": {
+    "legalName": "Lifescope Inc.",
+    "brand": "Companion Intelligence",
+    "shortBrand": "Companion",
+    "domain": "ci.computer",
+    "confidentialityNotice": "Private & Confidential — Property of Lifescope Inc. Do not distribute."
+  },
+  "products": {
+    "core": {
+      "name": "Companion Core",
+      "kind": "appliance",
+      "tagline": "Personal AI server",
+      "storePath": "/store/p/core"
+    },
+    "hub": {
+      "name": "Companion Hub",
+      "kind": "software",
+      "tagline": "Your personal cloud. Runs on any machine."
+    },
+    "memory": {
+      "name": "Companion Memory",
+      "kind": "software",
+      "tagline": "Your AI remembers, because it's yours."
+    },
+    "portal": {
+      "name": "Companion Portal",
+      "kind": "service",
+      "tagline": "The easy door: sign-in, public web, paid capacity if you want it."
+    },
+    "os": {
+      "name": "Companion OS",
+      "kind": "software",
+      "tagline": "The appliance operating system."
+    },
+    "capture": {
+      "name": "Companion Capture",
+      "kind": "software",
+      "tagline": "Everything you see and hear, on your own machine."
+    }
+  },
+  "taglines": {
+    "primary": "The AI That You Own",
+    "uncloud": "UnCloud Your Life",
+    "pitch": "All your cloud apps under one roof; installs in minutes; it is all yours.",
+    "secondary": [
+      "Powerful. Simple. Reliable.",
+      "One box. No subscription. It's yours.",
+      "Stop renting. Own the stack."
+    ],
+    "descriptor": "Self-hosted AI, private memory, and a personal app store on hardware you control."
+  },
+  "pillars": [
+    {
+      "id": "privacy",
+      "title": "Privacy",
+      "line": "Cloud AI trains on your searches. Yours doesn't."
+    },
+    {
+      "id": "ownership",
+      "title": "Own the Tech Stack",
+      "line": "Stop renting the cloud. Store your files, photos, and videos on your private device."
+    },
+    {
+      "id": "local-ai",
+      "title": "Do More with Local AI",
+      "line": "Powerful AI compute and huge context on hardware you own and control."
+    },
+    {
+      "id": "memory",
+      "title": "Build Your Digital Memory",
+      "line": "Import your life's data, give AI agents full context, and query your own history."
+    }
+  ],
+  "pricing": {
+    "currency": "USD",
+    "core": {
+      "oneTime": 5200,
+      "oneTimeDisplay": "$5,200",
+      "oneTimeSentence": "$5,200 once",
+      "financingDisplay": "~$200/month with Affirm",
+      "financingNote": "financing through Affirm starts at ~$200/month with approval.",
+      "verifiedAt": "2026-08-11",
+      "source": "https://ci.computer/store/p/core (og:price:amount 5200.00; schema.org AggregateOffer 5200.0)",
+      "history": [
+        {
+          "oneTime": 3600,
+          "until": "2026-08-11"
+        }
+      ]
+    },
+    "coreUltra": {
+      "oneTime": 27600,
+      "oneTimeDisplay": "$27,600",
+      "oneTimeSentence": "$27,600 once",
+      "verifiedAt": "2026-08-11",
+      "source": "packages/marketing pricingModel, re-verified with the Core price"
+    },
+    "hub": {
+      "oneTime": 0,
+      "oneTimeDisplay": "$0",
+      "note": "Free to download and run forever."
+    },
+    "portalPro": {
+      "monthly": 9,
+      "yearly": 99,
+      "display": "$9 a month or $99 a year",
+      "verifiedAt": "2026-08-11",
+      "source": "packages/marketing pricingModel"
+    },
+    "addons": [
+      {
+        "id": "extra-device",
+        "title": "Extra device",
+        "monthly": 5,
+        "display": "$5 / month",
+        "body": "Another node on the same org."
+      },
+      {
+        "id": "extra-subdomain",
+        "title": "Extra subdomain",
+        "monthly": 1,
+        "display": "$1 / month",
+        "body": "One more public name."
+      },
+      {
+        "id": "custom-domain",
+        "title": "Custom domain",
+        "monthly": 4,
+        "display": "$4 / month",
+        "body": "Your own hostname on the public web layer."
+      },
+      {
+        "id": "user-support",
+        "title": "User support",
+        "monthly": 29,
+        "display": "$29 / month",
+        "body": "A human on the commercial side, if you want one."
+      }
+    ],
+    "subscriptionStack": {
+      "annualPerUser": 7020,
+      "display": "~$7,020/yr",
+      "note": "CI's own composite of a rented AI + SaaS stack per user — marketing math, not an independently verifiable figure.",
+      "verifiedAt": "2026-08-11"
+    },
+    "subscriptions": {
+      "noSoftwareSubscription": "No software subscription",
+      "noSubscription": "No subscription",
+      "noRateLimits": "No rate limits"
+    }
+  },
+  "specs": {
+    "core": {
+      "ram": {
+        "value": "128 GB",
+        "label": "Unified RAM for inference"
+      },
+      "storage": {
+        "value": "2 TB",
+        "label": "NVMe storage, expandable"
+      },
+      "power": {
+        "value": "500 W",
+        "label": "More power to boost speed"
+      },
+      "noise": {
+        "value": "19 dB",
+        "label": "Whisper-quiet when idle"
+      },
+      "warranty": {
+        "value": "2 Years",
+        "label": "Warranty on parts & labor"
+      },
+      "apps": {
+        "value": "250+",
+        "label": "One-click apps"
+      },
+      "summaryLine": "Personal AI server · 128 GB unified RAM · 2 TB NVMe",
+      "verifiedAt": "2026-08-11",
+      "source": "https://ci.computer/store/p/core"
+    }
+  },
+  "ctas": {
+    "getCore": {
+      "label": "Get Companion Core",
+      "href": "/store/p/core"
+    },
+    "downloadHub": {
+      "label": "Download Hub — free",
+      "href": "/download"
+    },
+    "learnMore": {
+      "label": "Learn more"
+    }
+  },
+  "urls": {
+    "site": "https://ci.computer",
+    "store": "https://ci.computer/store",
+    "coreProduct": "https://ci.computer/store/p/core",
+    "download": "https://ci.computer/download",
+    "downloadBase": "https://dl.ci.computer",
+    "docs": "https://docs.ci.computer",
+    "github": "https://github.com/companionintelligence"
+  },
+  "claims": [
+    {
+      "id": "save-75-3yr",
+      "text": "Save 75% on your AI stack over three years",
+      "basis": "3-year rented $21,060 (3 × $7,020) vs owned $5,200 → 75.3%",
+      "verifiedAt": "2026-08-11",
+      "source": "packages/marketing homeCostBreakdown; 2026-08-08 site claim audit"
+    },
+    {
+      "id": "no-telemetry",
+      "text": "No telemetry. No training on your data.",
+      "basis": "Product architecture — local-first; see CI-Engineering architecture.md",
+      "verifiedAt": "2026-06-03",
+      "source": "content/voice/brand-voice.md (Part I, 2026-06-03 analysis)"
+    },
+    {
+      "id": "apps-250",
+      "text": "250+ one-click apps",
+      "basis": "CI-Marketplace catalog count",
+      "verifiedAt": "2026-08-11",
+      "source": "packages/marketing homeHero.stats"
+    }
+  ],
+  "campaign": {
+    "$comment": "Kickstarter tiers, early-bird MSRPs and pledge-manager add-on prices are campaign economics with their own provenance; they live in generated/infographics (CAMPAIGN.md §2–3, content/06-editions.json, 11-in-the-box.json) and are NOT retail pricing."
+  }
+}

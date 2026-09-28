@@ -1,12 +1,21 @@
 {
   "uuid": "c1a4e5b7-8c3d-4f2e-9a1b-6d7e8f9a0b1c",
-  "shortName": "CI Memory",
-  "longName": "CI Digital Memory",
+  "shortName": "Companion Memory",
+  "longName": "Companion Memory for Pebble",
   "companyName": "Companion Intelligence",
   "versionLabel": "1.0",
   "sdkVersion": "3",
-  "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery"],
-  "capabilities": ["configurable", "location"],
+  "targetPlatforms": [
+    "aplite",
+    "basalt",
+    "chalk",
+    "diorite",
+    "emery"
+  ],
+  "capabilities": [
+    "configurable",
+    "location"
+  ],
   "watchapp": {
     "watchface": false
   },
@@ -18,6 +27,13 @@
     "KEY_STATUS": 4
   },
   "resources": {
-    "media": []
+    "media": [
+      {
+        "type": "png",
+        "name": "IMAGE_MENU_ICON",
+        "file": "images/menu-icon.png",
+        "menuIcon": true
+      }
+    ]
   }
 }

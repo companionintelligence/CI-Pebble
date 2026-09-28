@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{products.memory.name}} for Pebble</title>
+<meta name="description" content="Recall and search your {{products.memory.name}} from your Pebble. {{products.memory.tagline}}">
+<meta name="theme-color" content="#0a6358">
+<link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/brand/tokens.css">
+<script>
+  /* Follow the system theme before first paint; the toggle below overrides and remembers it. */
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (e) {}
+    var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) { document.documentElement.classList.add('dark'); }
+  }());
+</script>
+<style>
+  @font-face { font-family: "Manrope"; src: url("assets/brand/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("assets/brand/jetbrains-mono.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Manrope", system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  a { color: var(--ci-link); }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 6px; }
+  .wrap { width: min(1040px, 100% - 32px); margin-inline: auto; }
+  .only-light { display: block; } .only-dark { display: none; }
+  .dark .only-light { display: none; } .dark .only-dark { display: block; }
+
+  header.top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  header.top img { height: 34px; width: auto; }
+  header.top nav { display: flex; gap: 20px; align-items: center; font-size: 15px; font-weight: 600; }
+  header.top nav a { text-decoration: none; color: var(--muted-foreground); }
+  header.top nav a:hover { color: var(--foreground); }
+  .theme { border: 1px solid var(--border); background: var(--card); color: var(--foreground); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; padding: 48px 0 72px; }
+  .eyebrow { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); background: var(--muted); border-radius: 999px; padding: 5px 12px; }
+  h1 { font-size: clamp(38px, 6vw, 60px); line-height: 1.04; letter-spacing: -0.02em; margin: 18px 0 16px; font-weight: 800; }
+  .lead { font-size: 19px; color: var(--muted-foreground); max-width: 34ch; margin: 0 0 28px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 13px 22px; border-radius: var(--radius); font-weight: 700; font-size: 16px; text-decoration: none; border: 1px solid transparent; }
+  .btn.primary { background: var(--gradient-button); color: var(--ci-button-foreground); box-shadow: var(--ci-button-shadow); }
+  .btn.ghost { border-color: var(--border); color: var(--foreground); background: var(--card); }
+
+  .watches { display: flex; gap: 18px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
+  figure.watch { margin: 0; text-align: center; }
+  .bezel { background: linear-gradient(160deg, var(--teal-900), var(--teal-950)); padding: 14px; border-radius: 22px; box-shadow: var(--shadow-lg); display: inline-block; }
+  .bezel.round { border-radius: 50%; padding: 14px; }
+  .bezel img { display: block; image-rendering: pixelated; border-radius: 6px; }
+  .bezel.round img { border-radius: 50%; }
+  figcaption { margin-top: 10px; font-size: 13px; color: var(--muted-foreground); }
+
+  section { padding: 56px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.01em; margin: 0 0 12px; }
+  .sub { color: var(--muted-foreground); max-width: 60ch; margin: 0 0 32px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); padding: 22px; box-shadow: var(--shadow-sm); }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted-foreground); font-size: 15px; }
+  .tag { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--muted); border-radius: 999px; padding: 3px 10px; }
+
+  svg.diagram { width: 100%; height: auto; max-width: 860px; display: block; margin: 0 auto; }
+  svg.diagram text { font-family: "Manrope", system-ui, sans-serif; fill: var(--foreground); font-size: 15px; font-weight: 600; }
+  svg.diagram .small { font-size: 12px; font-weight: 500; fill: var(--muted-foreground); }
+  svg.diagram .node { fill: var(--card); stroke: var(--border); stroke-width: 1.5; }
+  svg.diagram .core { fill: var(--primary); stroke: none; }
+  svg.diagram text.oncore { fill: var(--primary-foreground); }
+  svg.diagram .line { stroke: var(--primary); stroke-width: 2; fill: none; }
+  svg.diagram .never { fill: none; stroke: var(--destructive); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  svg.diagram .neverline { stroke: var(--destructive); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; opacity: .7; }
+
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ol.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); padding: 20px 20px 20px 64px; position: relative; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 18px; top: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); display: grid; place-items: center; font-weight: 800; }
+  ol.steps h3 { margin: 0 0 4px; font-size: 17px; }
+  ol.steps p { margin: 0 0 8px; color: var(--muted-foreground); }
+  pre { position: relative; margin: 10px 0 0; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); padding: 14px 16px; overflow-x: auto; font: 13.5px/1.55 "JetBrains Mono", ui-monospace, monospace; }
+  pre button { position: absolute; top: 8px; right: 8px; font: inherit; font-size: 12px; font-weight: 600; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .92em; background: var(--muted); border-radius: 5px; padding: 1px 6px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); background: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  .scroll { overflow-x: auto; }
+
+  ul.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  ul.checks li { padding-left: 30px; position: relative; }
+  ul.checks li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 12px; height: 7px; border-left: 3px solid var(--primary); border-bottom: 3px solid var(--primary); transform: rotate(-45deg); }
+
+  .road { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  footer { border-top: 1px solid var(--border); padding: 36px 0 56px; color: var(--muted-foreground); font-size: 14px; }
+  footer .row { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  footer img { height: 30px; width: auto; }
+
+  @media (max-width: 800px) { .hero { grid-template-columns: 1fr; padding-top: 24px; } header.top nav a.hide { display: none; } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a href="#top" aria-label="{{company.brand}}"><img class="only-light" src="assets/brand/lockup-on-light.svg" alt="{{company.brand}}"><img class="only-dark" src="assets/brand/lockup.svg" alt="" aria-hidden="true"></a>
+    <nav>
+      <a class="hide" href="#what">What it does</a>
+      <a class="hide" href="#setup">Set up</a>
+      <a class="hide" href="#roadmap">Roadmap</a>
+      <button class="theme" id="theme" type="button" aria-label="Switch between light and dark">Theme</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div>
+        <span class="eyebrow">{{products.memory.name}} for Pebble</span>
+        <h1>Your Memory, on your wrist.</h1>
+        <p class="lead">{{products.memory.tagline}} Recall and search it from your Pebble. Every request goes to the Memory you host.</p>
+        <div class="cta">
+          <a class="btn primary" href="#setup">Set up in four steps</a>
+          <a class="btn ghost" href="{{urls.github}}/CI-Pebble">View the source</a>
+        </div>
+      </div>
+      <div class="watches" aria-label="The app running on three Pebble models">
+        <figure class="watch"><span class="bezel"><img src="assets/screens/basalt-01-main-menu.png" width="144" height="168" alt="Main menu on a Pebble Time: Recall, Ask, Last answer"></span><figcaption>Pebble Time</figcaption></figure>
+        <figure class="watch"><span class="bezel round"><img src="assets/screens/chalk-03-answer.png" width="180" height="180" alt="An answer on a round Pebble Time Round"></span><figcaption>Time Round</figcaption></figure>
+      </div>
+    </div>
+
+    <section id="what">
+      <h2>Three taps to what you already know.</h2>
+      <p class="sub">The watch never touches the network. It asks your phone, your phone asks your Memory, and the answer comes back to your wrist with a short buzz.</p>
+      <div class="grid3">
+        <div class="card"><h3>Recall</h3><p>The latest from your Memory, in one press. No typing, no menus to dig through.</p><span class="tag">memory scope</span></div>
+        <div class="card"><h3>Ask</h3><p>Pick a question or speak your own. Your Memory searches what you saved and returns the lines that match.</p><span class="tag">memory scope</span></div>
+        <div class="card"><h3>Last answer</h3><p>Your latest answer stays on the watch, so it is there when you are offline.</p><span class="tag">no key needed</span></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>One path. Nothing else in the loop.</h2>
+      <p class="sub">The app talks to your {{products.memory.name}} and only your {{products.memory.name}}. What your Memory does with {{products.hub.name}} or its own models stays inside your machine.</p>
+      <svg class="diagram" viewBox="0 0 860 230" role="img" aria-label="Watch to phone over Bluetooth, phone to Companion Memory over HTTPS. Ollama and Companion Hub sit behind Companion Memory and are never contacted directly.">
+        <rect class="node" x="10" y="70" width="170" height="70" rx="14"/><text x="95" y="102" text-anchor="middle">Pebble</text><text class="small" x="95" y="124" text-anchor="middle">the watch app</text>
+        <path class="line" d="M180 105 H290"/><text class="small" x="235" y="94" text-anchor="middle">Bluetooth</text>
+        <rect class="node" x="290" y="70" width="170" height="70" rx="14"/><text x="375" y="102" text-anchor="middle">Your phone</text><text class="small" x="375" y="124" text-anchor="middle">PebbleKit companion</text>
+        <path class="line" d="M460 105 H570"/><text class="small" x="515" y="94" text-anchor="middle">HTTPS + key</text>
+        <rect class="core" x="570" y="60" width="200" height="90" rx="16"/><text class="oncore" x="670" y="100" text-anchor="middle">{{products.memory.name}}</text><text class="oncore" x="670" y="124" text-anchor="middle" style="font-size:12px;font-weight:500">the Memory you host</text>
+        <path class="neverline" d="M770 85 H800"/><rect class="never" x="800" y="40" width="52" height="46" rx="10"/><text class="small" x="826" y="68" text-anchor="middle">Ollama</text>
+        <path class="neverline" d="M770 125 H800"/><rect class="never" x="800" y="118" width="52" height="46" rx="10"/><text class="small" x="826" y="146" text-anchor="middle">Hub</text>
+        <text class="small" x="700" y="200" text-anchor="middle">Dashed: never contacted by this app</text>
+      </svg>
+    </section>
+
+    <section id="setup">
+      <h2>Set up in four steps.</h2>
+      <p class="sub">You need a running {{products.memory.name}} and a Pebble. Ten minutes, most of it waiting on the build.</p>
+      <ol class="steps">
+        <li><h3>Create an API key</h3><p>In {{products.memory.name}}, open Settings, API keys, and create one with the <code>memory</code> scope. Test it from any terminal:</p>
+<pre><code>curl -X POST https://your-memory.example/api/memory/recall \
+  -H "x-api-key: YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{"query": "what happened recently?", "maxResults": 3}'</code></pre></li>
+        <li><h3>Build the watch app</h3><p>In <a href="https://cloudpebble.repebble.com/">CloudPebble</a>, import the repository and press Compile. Or locally:</p>
+<pre><code>uv tool install pebble-tool
+pebble sdk install latest
+scripts/build-modern.sh</code></pre></li>
+        <li><h3>Install it</h3><p>Send the build to your watch from CloudPebble, or try it first in the emulator with <code>pebble install --emulator basalt</code>.</p></li>
+        <li><h3>Connect your Memory</h3><p>In the Pebble phone app, open Companion Memory settings. Enter your Memory URL and the key. Save, and the app checks the connection and tells you what works.</p></li>
+      </ol>
+    </section>
+
+    <section id="key">
+      <h2>Give the key only what it needs.</h2>
+      <p class="sub">{{products.memory.name}} denies a scoped key on any route that does not name its scope. That is a good default, and it decides what each feature can do today.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Feature</th><th>Key it needs</th></tr></thead>
+        <tbody>
+          <tr><td>Recall and Ask</td><td><code>memory</code> scope</td></tr>
+          <tr><td>Register this watch as a device</td><td>Unrestricted key. Device routes have no scope yet.</td></tr>
+          <tr><td>Location sync (off by default)</td><td>Unrestricted key. Position routes have no scope yet.</td></tr>
+          <tr><td>Recorder, next</td><td><code>memory</code> scope with write access</td></tr>
+          <tr><td>Planner, next</td><td><code>intents</code> scope</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="privacy">
+      <h2>Your data. Your Memory. Nothing in between.</h2>
+      <ul class="checks">
+        <li>Requests go from your phone straight to the Memory URL you enter. There is no relay and no account.</li>
+        <li>The API key lives on your phone. The settings page is a local page, so the key never touches a web server.</li>
+        <li>Location sync is off until you turn it on, and it only ever goes to your Memory.</li>
+        <li>This app has no analytics and no third party. One exception is outside our hands: if you speak a question, Pebble Dictation is a cloud speech service, so that audio goes to the speech service your Pebble platform uses. Picking a listed question sends no audio anywhere.</li>
+      </ul>
+    </section>
+
+    <section id="roadmap">
+      <h2>From a viewer to a recorder and planner.</h2>
+      <p class="sub">The watch already reads your Memory. Next it writes to it and helps you plan the day, built on what {{products.memory.name}} and {{products.hub.name}} expose today.</p>
+      <div class="road">
+        <div class="card"><h3>Recorder</h3><p>Speak a note on your wrist. It lands in your Memory as text you can search.</p><span class="tag">next</span></div>
+        <div class="card"><h3>Planner</h3><p>See what is due, add a task by voice, mark it done.</p><span class="tag">next</span></div>
+        <div class="card"><h3>Reminders on your wrist</h3><p>Due reminders arrive as timeline pins, even when the phone app is asleep.</p><span class="tag">later</span></div>
+        <div class="card"><h3>A bridge on {{products.hub.name}}</h3><p>An installable app that pairs your phone and pushes reminders to it.</p><span class="tag">later</span></div>
+      </div>
+      <p style="margin-top:24px"><a href="{{urls.github}}/CI-Pebble/blob/main/docs/ROADMAP.md">Read the full roadmap</a>, with the exact endpoints and gaps.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="row">
+      <div><img class="only-light" src="assets/brand/lockup-on-light.svg" alt="{{company.brand}}"><img class="only-dark" src="assets/brand/lockup.svg" alt="" aria-hidden="true"></div>
+      <div>{{products.memory.name}} for Pebble is part of {{company.brand}}. Built on <a href="https://rebble.io">Rebble</a>. &copy; Lifescope Inc.</div>
+    </div>
+  </footer>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement, btn = document.getElementById('theme');
+    function label() { btn.textContent = root.classList.contains('dark') ? 'Light' : 'Dark'; }
+    label();
+    btn.addEventListener('click', function () {
+      var dark = root.classList.toggle('dark');
+      try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+      label();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('pre'), function (pre) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = 'Copy';
+      b.addEventListener('click', function () {
+        var text = pre.querySelector('code').innerText;
+        if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); }); }
+      });
+      pre.appendChild(b);
+    });
+  }());
+</script>
+</body>
+</html>

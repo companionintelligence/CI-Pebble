@@ -16,23 +16,17 @@ Companion Intelligence integration for the Pebble smartwatch — capture and not
 
 ## Stack
 
-- Pebble SDK / C / JavaScript
+- Pebble SDK / C / JavaScript (ES5 in the companion)
 - Companion app transport
 
 ## Key commands
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server / service
-npm run dev
-
-# Run tests
-npm test
-
-# Build for production
-npm run build
+npm test                 # companion tests (Node, no dependencies to install)
+npm run build            # compile for all platforms (needs pebble-tool and an installed SDK)
+npm run shots            # real emulator screenshots
+npm run brand:sync       # regenerate brand-derived files from vendor/brand
+npm run brand:check      # fail if they drifted
 ```
 
 ## Package manager
