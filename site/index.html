@@ -188,17 +188,18 @@
         makes one authenticated call to your CI-Server appliance and
         relays the answer back.
       </p>
-      <div class="diagram">
+      <div class="diagram" id="fallback-diagram">
         <div class="node">Pebble Watch<small>Bluetooth</small></div>
         <div class="arrow">&#8596;</div>
         <div class="node">Phone Companion<small>PebbleKit JS</small></div>
         <div class="arrow">&#8596;</div>
         <div class="node">Your CI-Server<small>self-hosted</small></div>
       </div>
+      <div id="mermaid-mount"></div>
       <p>
         That's the whole path. The app never reaches Ollama or CI-Hub
-        directly — those are CI-Server's own concern, reached (if at all)
-        through CI-Server itself.
+        directly (dashed, in red above) — those are CI-Server's own
+        concern, reached (if at all) through CI-Server itself.
       </p>
     </section>
 
@@ -251,5 +252,45 @@ pebble install --phone &lt;PHONE_IP&gt; --logs</code></pre>
       </p>
     </footer>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    (function () {
+      var DEFINITION = [
+        'flowchart LR',
+        '    Watch["Pebble Watch<br/>Bluetooth"]',
+        '    Phone["Phone Companion<br/>PebbleKit JS"]',
+        '    Server["Your CI-Server<br/>self-hosted"]',
+        '    Ollama["Ollama / LLM backend"]',
+        '    Hub["CI-Hub (app runtime)"]',
+        '',
+        '    Watch <--> Phone',
+        '    Phone <-->|"HTTPS, x-api-key"| Server',
+        '    Server -.->|internal only| Ollama',
+        '    Server -.->|internal, signed| Hub',
+        '',
+        '    classDef never fill:#f8d7da,stroke:#c0392b,stroke-dasharray: 4 3;',
+        '    class Ollama,Hub never;'
+      ].join('\n');
+
+      if (typeof mermaid === 'undefined') { return; }
+
+      var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+
+      /* mermaid.render() takes a definition string and returns SVG markup
+       * directly — it does its own off-DOM measurement, so it works
+       * without ever needing a visible-but-empty placeholder element in
+       * the page (which is what produced NaN-transform SVG errors when
+       * this used mermaid.run() against a display:none node). Only swap
+       * the fallback CSS diagram out once real SVG is in hand. */
+      mermaid.render('connect-diagram-svg', DEFINITION).then(function (result) {
+        var mount = document.getElementById('mermaid-mount');
+        mount.innerHTML = result.svg;
+        document.getElementById('fallback-diagram').style.display = 'none';
+      }).catch(function () {
+        /* CDN blocked or render failed — the CSS fallback diagram stays visible. */
+      });
+    })();
+  </script>
 </body>
 </html>

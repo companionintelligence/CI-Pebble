@@ -12,6 +12,34 @@ checked against either repo's actual code — it called endpoints that were
 never real, and reached past CI-Server for things CI-Server already owns.
 This doc is that check, and a record of what changed.
 
+```mermaid
+flowchart TD
+    subgraph Before["Before — fictional / wrong"]
+        direction LR
+        E1["GET /api/events"]:::fake
+        E2["POST /api/passive-log"]:::fake
+        E3["GET /api/notifications"]:::fake
+        E4["Ollama /api/chat\n(direct from phone)"]:::fake
+    end
+
+    subgraph After["After — real CI-Server contracts"]
+        direction LR
+        R1["POST /api/memory/recall"]:::real
+        R2["POST /api/position"]:::real
+        R3["removed — no server\nequivalent exists"]:::gap
+        R4["POST /api/memory/recall\n(via CI-Server, not Ollama)"]:::real
+    end
+
+    E1 -.replaced by.-> R1
+    E2 -.replaced by.-> R2
+    E3 -.replaced by.-> R3
+    E4 -.replaced by.-> R4
+
+    classDef fake fill:#f8d7da,stroke:#c0392b;
+    classDef real fill:#d4edda,stroke:#2e7d32;
+    classDef gap fill:#fff3cd,stroke:#b8860b;
+```
+
 ## 1. Endpoints the old code called that do not exist
 
 | Old call | Where it lived | Reality |

@@ -9,19 +9,39 @@ Companion Pebble smartwatch app that acts as a wearable interface for the
 > ground-truth comparison of what this app calls against CI-Server's real
 > API, and what changed.
 
+![Companion Pebble setup page](docs/screenshots/site-landing.png)
+
+The setup page above is live at [pebble.ci.computer](https://pebble.ci.computer)
+(source in [`site/`](site/)).
+
 ---
 
 ## Architecture
 
-```
-Pebble Watch  <->  Phone Companion (PebbleKit JS)  <->  CI-Server
-    (C)                  (JavaScript)                     (REST)
+```mermaid
+flowchart LR
+    Watch["Pebble Watch\n(C, main.c)"]
+    Phone["Phone Companion\n(PebbleKit JS)"]
+    Server["CI-Server\n(your appliance)"]
+
+    Watch <-->|Bluetooth\nAppMessage| Phone
+    Phone <-->|HTTPS\nx-api-key| Server
+
+    Ollama["Ollama / LLM backend"]
+    Hub["CI-Hub\n(app runtime)"]
+
+    Server -.->|internal only| Ollama
+    Server -.->|internal, signed| Hub
+
+    classDef never fill:#f8d7da,stroke:#c0392b,stroke-dasharray: 4 3;
+    class Ollama,Hub never;
 ```
 
 All heavy processing happens off the watch. The watch UI sends small
 AppMessage packets over Bluetooth to the phone companion, which makes a
 single authenticated HTTPS call to CI-Server, then relays the result back
-to the watch.
+to the watch. The dashed red boxes are never reached by this app directly —
+they're CI-Server's own concern.
 
 **CI-Server is the only service this app talks to.** Two things it
 deliberately never does, both covered in the audit doc:
@@ -38,18 +58,23 @@ deliberately never does, both covered in the audit doc:
 
 ### Data-flow sequence
 
-```
-Watch          Phone                    CI-Server
-  |              |                          |
-  |--CMD_FETCH-->|                          |
-  |              |--POST /api/memory/recall>|
-  |              |<------{block, count}-----|
-  |<--KEY_RESULT-|                          |
-  |              |                          |
-  |--CMD_ASK_AGENT>                         |
-  |              |--POST /api/memory/recall>|
-  |              |<------{block, count}-----|
-  |<--KEY_RESULT-|                          |
+```mermaid
+sequenceDiagram
+    participant W as Pebble Watch
+    participant P as Phone Companion
+    participant S as CI-Server
+
+    W->>P: CMD_FETCH_EVENTS
+    P->>S: POST /api/memory/recall<br/>{query: "what's going on"}
+    S-->>P: {block, resultCount}
+    P->>W: KEY_RESULT
+
+    Note over W,S: "Ask AI" is the same call, only the query differs
+
+    W->>P: CMD_ASK_AGENT (question)
+    P->>S: POST /api/memory/recall<br/>{query: question}
+    S-->>P: {block, resultCount}
+    P->>W: KEY_RESULT
 ```
 
 `Recall Memory` and `Ask AI` are the same CI-Server call
@@ -74,9 +99,32 @@ CI-Pebble/
 │       └── pebble-js-app.js  # Phone companion – CI-Server calls
 ├── site/                 # Static Cloudflare Pages site for pebble.ci.computer
 ├── docs/
-│   └── CI-Integration-Audit.md
+│   ├── CI-Integration-Audit.md
+│   └── screenshots/
 └── README.md
 ```
+
+---
+
+## Screenshots
+
+The setup page screenshot above is real (captured from the live deployment).
+Watch UI screenshots are not included here yet — the honest way to get them
+is straight from your own build, and they'll look right for whichever
+platform you actually ship to (Aplite/Basalt/Chalk/Diorite/Emery all render
+the menu differently). To add them:
+
+1. In [CloudPebble](https://cloudpebble.repebble.com/), open this project
+   and use **Compile → Run in emulator** (pick a platform).
+2. Click through **Recall Memory**, **Ask AI**, and **Last Result** in the
+   emulator.
+3. Use the emulator's built-in screenshot button (or your OS screenshot
+   tool on the emulator window) and drop the PNGs into
+   `docs/screenshots/`.
+4. Reference them here, e.g. `![Main menu](docs/screenshots/main-menu.png)`.
+
+The same screenshots are what you'll upload to the Rebble Developer Portal
+when publishing — see [Publishing to the appstore](#publishing-to-the-appstore) below.
 
 ---
 
@@ -174,6 +222,49 @@ pebble install --emulator basalt --logs
 pebble install --phone <PHONE_IP> --logs
 ```
 
+If you're building in [CloudPebble](https://cloudpebble.repebble.com/)
+instead of the local `pebble` CLI, the equivalent is the **Compile** tab,
+then **Install** (real watch, needs the CloudPebble companion app on your
+phone) or **Run in emulator**.
+
+---
+
+## Publishing to the appstore
+
+The original Pebble appstore is gone; the community-run continuation is
+[Rebble](https://rebble.io), and its submission surface is the
+[Developer Portal](https://dev-portal.rebble.io/). Here's the real path,
+not a guess at one:
+
+1. **Get a clean build for every target platform.** `pebble build` (or
+   CloudPebble's Compile tab) produces one `.pbw` that bundles all
+   platforms declared in `appinfo.json`'s `targetPlatforms`
+   (`aplite, basalt, chalk, diorite, emery`). Fix build errors before
+   anything else — see Troubleshooting below for one that's already been
+   hit and fixed in this repo.
+2. **Set the app's launcher icon.** This app doesn't ship one yet
+   (`appinfo.json`'s `resources.media` is empty). The safest way to add
+   one is through CloudPebble's project **Settings** tab, which has a
+   dedicated icon upload field and writes the correct `resources.media`
+   entry for you — hand-editing that JSON risks the same kind of
+   never-actually-compiled mistake the dictation status bug was (see the
+   audit doc). A simple 25×25–48×48 PNG is enough to start.
+3. **Take real screenshots** from the emulator (see
+   [Screenshots](#screenshots) above) — one set per platform you support,
+   up to 5 each.
+4. **Create the app listing** on the
+   [Developer Portal](https://dev-portal.rebble.io/): name, description
+   (≤1600 characters), category, the large and small store icons, your
+   screenshots, and optionally a marketing banner (templates linked from
+   Rebble's [appstore-assets guide](https://developer.rebble.io/guides/appstore-publishing/appstore-assets/)).
+5. **Upload the `.pbw`** as a release on that listing and submit for
+   review, per Rebble's
+   [publishing-an-app guide](https://developer.rebble.io/guides/appstore-publishing/publishing-an-app/).
+
+None of this can be done from a repo push — it's a Developer Portal
+web flow with your own Rebble account, by design (nobody but you should
+be able to publish under your account).
+
 ---
 
 ## AppMessage keys
@@ -215,6 +306,7 @@ Command codes sent via `KEY_COMMAND`:
 
 | Symptom | Fix |
 |---|---|
+| Build fails: `'DictationSessionStatusFailureTranscription' undeclared` | Fixed in this repo — the SDK's real enum value is `DictationSessionStatusFailureTranscriptionRejected` (`main.c`'s dictation callback). If you see this, pull latest; if you're diffing against an older copy, rename the identifier. |
 | AppMessage NACK / outbox full | Only one message can be in-flight at a time. Wait for the previous send to complete before sending another. |
 | Watch shows nothing after selecting a menu item | Check phone logs (`pebble logs`) for XHR errors. Confirm CI-Server URL and API key are correct. |
 | "Parse error" on watch | Log `xhr.responseText` on the phone. The server may be returning HTML (error page) instead of JSON — usually a wrong CI-Server URL. |

@@ -249,10 +249,16 @@ static void dictation_session_callback(DictationSession *session,
       transcription[0] != '\0') {
     send_command(CMD_ASK_AGENT, transcription);
   } else if (s_status_text) {
+    /* DictationSessionStatusFailureTranscriptionRejected is what the SDK
+     * reports when the user reviews the transcription and dismisses it —
+     * every other failure value (timeout, no speech, connectivity,
+     * disabled, internal/recognizer error) is a real failure, not a
+     * cancellation. (The previous check compared against a status name
+     * that doesn't exist in the SDK and never actually compiled.) */
     text_layer_set_text(s_status_text,
-                        status == DictationSessionStatusFailureTranscription
-                            ? "Dictation failed"
-                            : "Dictation canceled");
+                        status == DictationSessionStatusFailureTranscriptionRejected
+                            ? "Dictation canceled"
+                            : "Dictation failed");
   }
 }
 
