@@ -1,11 +1,23 @@
 /**
  * CI Digital Memory – PebbleKit JS Phone Companion (pebble-js-app.js)
  *
- * Runs on the paired phone and acts as a bridge between the Pebble watch and:
- *   • CI-Server  – REST API for the user's private Digital Memory archive
- *   • Ollama LLM – local language model API for AI-powered answers
+ * Runs on the paired phone and acts as a bridge between the Pebble watch and
+ * CI-Server (the user's private Digital Memory appliance). CI-Server is the
+ * ONLY service this companion talks to:
  *
- * Architecture: Watch (C) ↔ Phone (this file) ↔ CI-Server / Ollama
+ *   - It never calls Ollama directly. Ollama is CI-Server's own internal LLM
+ *     backend; CI-Server owns model selection, tool-calling and conversation
+ *     state, so a device client asks CI-Server, not the model runtime behind
+ *     it.
+ *   - It never calls CI-Hub. Hub is the appliance's local app runtime for
+ *     installed marketplace apps; Server-to-Hub traffic is internal,
+ *     signed service-to-service messaging, not a surface device clients use.
+ *
+ * See ../../docs/CI-Integration-Audit.md for how this file used to call
+ * endpoints (`/api/events`, `/api/passive-log`, `/api/notifications`, and a
+ * raw Ollama `/api/chat`) that never existed on CI-Server, and what changed.
+ *
+ * Architecture: Watch (C) <-> Phone (this file) <-> CI-Server
  *
  * AppMessage key constants (must match appinfo.json "appKeys" and main.c):
  *   KEY_COMMAND  0
@@ -15,8 +27,8 @@
  *   KEY_STATUS   4
  *
  * Command values:
- *   CMD_FETCH_EVENTS  1  – fetch recent memory events from CI-Server
- *   CMD_ASK_AGENT     2  – send a natural-language question to Ollama
+ *   CMD_FETCH_EVENTS  1  – ask CI-Server to recall recent memory
+ *   CMD_ASK_AGENT     2  – ask CI-Server a natural-language question against memory
  */
 
 /* ---- AppMessage key constants ------------------------------------------- */
@@ -29,42 +41,49 @@ var KEY_STATUS  = 4;
 /* ---- Command values ------------------------------------------------------ */
 var CMD_FETCH_EVENTS = 1;
 var CMD_ASK_AGENT    = 2;
-var CMD_LOG_PASSIVE  = 3;
 
 /* ---- localStorage keys --------------------------------------------------- */
-var STORAGE_CI_HOST    = 'ci_host';
-var STORAGE_AUTH_TOKEN = 'ci_auth_token';
-var STORAGE_OLLAMA_URL = 'ollama_url';
-var STORAGE_CACHE_KEY  = 'last_result';
-var STORAGE_NOTIFICATION_CURSOR = 'notification_cursor';
+var STORAGE_CI_HOST   = 'ci_host';
+var STORAGE_API_KEY   = 'ci_api_key';
+var STORAGE_DEVICE_ID = 'ci_device_id';
+var STORAGE_CACHE_KEY = 'last_result';
 
 /* ---- Defaults (user can override via localStorage from a config page) ---- */
-var DEFAULT_CI_HOST    = 'https://ci-server.local';
-var DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+var DEFAULT_CI_HOST = 'https://ci-server.local';
 
-/* ---- CI-Server endpoints ------------------------------------------------- */
-var PASSIVE_LOG_PATH   = '/api/passive-log';
-var NOTIFICATIONS_PATH = '/api/notifications';
+/* ---- CI-Server endpoints (mirrors appinfo.json's "companyName" appliance) -
+ * All three are real, guarded REST routes on CI-Server (NestJS). The gateway
+ * strips the "/api/" prefix before it reaches the app, so these are the
+ * literal controller paths with "/api" put back on for clients. -------------
+ */
+var MEMORY_RECALL_PATH = '/api/memory/recall';
+var DEVICES_PATH       = '/api/devices';
+var POSITION_PATH      = '/api/position';
 
-/* ---- LLM model to use (matches CI-Server .env OLLAMA_HOST setting) ------- */
-var OLLAMA_MODEL = 'gemma3';
+/* ---- This app's own identity, sent when registering as a Device ---------- */
+var DEVICE_TYPE = 'smartwatch';
+var DEVICE_NAME = 'Pebble Watch';
+/* Keep in sync with appinfo.json "versionLabel". */
+var APP_VERSION = '1.0';
+
+/* ---- memory.recall request limits (mirrors CI-Server's recallSchema) ----- */
+var RECALL_QUERY_MAX_LEN  = 2000;
+var RECALL_MAX_RESULTS    = 5;
+var DEFAULT_RECALL_QUERY  = 'Summarize what happened recently and anything I should know about right now.';
 
 /* ---- Request timeout values (ms) ---------------------------------------- */
-var CI_TIMEOUT     = 10000;
-var OLLAMA_TIMEOUT = 30000;
-var PASSIVE_LOG_TIMEOUT = 8000;
-var NOTIFICATION_TIMEOUT = 8000;
+var CI_TIMEOUT       = 15000;
+var DEVICE_TIMEOUT   = 8000;
+var POSITION_TIMEOUT = 8000;
 
 /* ---- Maximum characters to send in a single AppMessage ------------------- */
 var MAX_MSG_LEN = 252;
 
 /* ---- Background task cadence (ms) ---------------------------------------- */
-var PASSIVE_LOG_INTERVAL = 15 * 60 * 1000;
-var NOTIFICATION_POLL_INTERVAL = 60 * 1000;
+var PASSIVE_LOG_INTERVAL   = 15 * 60 * 1000;
 var LOCATION_CACHE_MAX_AGE = 60 * 1000;
 
 var passiveLogTimer = null;
-var notificationPollTimer = null;
 
 
 /* ==========================================================================
@@ -75,12 +94,12 @@ function getCIHost() {
   return normalizeBaseURL(localStorage.getItem(STORAGE_CI_HOST) || DEFAULT_CI_HOST);
 }
 
-function getOllamaURL() {
-  return normalizeBaseURL(localStorage.getItem(STORAGE_OLLAMA_URL) || DEFAULT_OLLAMA_URL);
+function getApiKey() {
+  return trimString(localStorage.getItem(STORAGE_API_KEY) || '');
 }
 
-function getAuthToken() {
-  return trimString(localStorage.getItem(STORAGE_AUTH_TOKEN) || '');
+function getDeviceId() {
+  return trimString(localStorage.getItem(STORAGE_DEVICE_ID) || '') || null;
 }
 
 function trimString(value) {
@@ -112,20 +131,16 @@ function saveSetting(key, value, normalizer) {
   }
 }
 
+/**
+ * CI-Server's ApiKeyStrategy reads `x-api-key` first and only falls back to
+ * `Authorization: Bearer <key>` for callers (like MCP clients) that cannot
+ * send a custom header. This companion can set custom headers, so it always
+ * sends the canonical form.
+ */
 function setAuthHeader(xhr) {
-  var token = getAuthToken();
-  if (token) {
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-  }
-}
-
-function getNotificationCursor() {
-  return localStorage.getItem(STORAGE_NOTIFICATION_CURSOR) || '';
-}
-
-function setNotificationCursor(cursor) {
-  if (cursor) {
-    localStorage.setItem(STORAGE_NOTIFICATION_CURSOR, cursor);
+  var key = getApiKey();
+  if (key) {
+    xhr.setRequestHeader('x-api-key', key);
   }
 }
 
@@ -142,21 +157,20 @@ function buildConfigurationPage() {
     'p{font-size:12px;line-height:1.4;color:#555;}' +
     '</style></head><body>' +
     '<h2>CI Digital Memory</h2>' +
-    '<p>Configure CI-Server authentication, Ollama access, and the background sync endpoints used by the companion app.</p>' +
+    '<p>Configure your CI-Server appliance URL and API key. Create the key on ' +
+    'CI-Server under Settings &rarr; API Keys with the <b>memory</b> scope enabled ' +
+    '&mdash; that scope is required for both Recall Memory and Ask AI.</p>' +
     '<label for="ci_host">CI-Server URL</label>' +
     '<input id="ci_host" type="url" value="' + escapeHTML(getCIHost()) + '">' +
-    '<label for="ci_auth_token">Bearer token</label>' +
-    '<input id="ci_auth_token" type="password" autocomplete="off" value="' + escapeHTML(getAuthToken()) + '">' +
-    '<label for="ollama_url">Ollama URL</label>' +
-    '<input id="ollama_url" type="url" value="' + escapeHTML(getOllamaURL()) + '">' +
+    '<label for="ci_api_key">CI-Server API key</label>' +
+    '<input id="ci_api_key" type="password" autocomplete="off" value="' + escapeHTML(getApiKey()) + '">' +
     '<button id="save">Save</button>' +
     '<script>(function(){' +
     'function value(id){return document.getElementById(id).value;}' +
     'document.getElementById("save").addEventListener("click", function(){' +
     'var payload={' +
     'ci_host:value("ci_host"),' +
-    'ci_auth_token:value("ci_auth_token"),' +
-    'ollama_url:value("ollama_url")' +
+    'ci_api_key:value("ci_api_key")' +
     '};' +
     'document.location="pebblejs://close#" + encodeURIComponent(JSON.stringify(payload));' +
     '});' +
@@ -225,64 +239,116 @@ function sendStatusToWatch(status) {
   );
 }
 
-function notifyWatch(title, body) {
-  if (Pebble.showSimpleNotificationOnPebble) {
-    Pebble.showSimpleNotificationOnPebble(truncate(title), truncate(body || ''));
-  } else {
-    sendStatusToWatch(title);
+
+/* ==========================================================================
+   CI-Server device registration
+   ========================================================================== */
+
+/**
+ * Register this phone/watch pair as a Device on CI-Server (POST /api/devices,
+ * device_type "smartwatch" — a first-class value in CI-Server's schema) and
+ * cache the server-assigned device_id. Best-effort: recall/ask/position all
+ * work without a device_id (it is optional everywhere it is used), so a
+ * failure here is logged, not surfaced to the watch.
+ */
+function registerDeviceIfNeeded() {
+  if (getDeviceId() || !getApiKey()) {
+    return;
+  }
+
+  var url = joinURL(getCIHost(), DEVICES_PATH);
+  var xhr = new XMLHttpRequest();
+  xhr.timeout = DEVICE_TIMEOUT;
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  setAuthHeader(xhr);
+
+  xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        var device = JSON.parse(xhr.responseText);
+        if (device && device.device_id) {
+          localStorage.setItem(STORAGE_DEVICE_ID, device.device_id);
+          console.log('Registered as CI-Server device ' + device.device_id);
+        }
+      } catch (e) {
+        console.log('Device registration response parse error: ' + e);
+      }
+    } else {
+      console.log('Device registration failed: ' + xhr.status);
+    }
+  };
+
+  xhr.onerror = function() {
+    console.log('Device registration network error');
+  };
+
+  xhr.ontimeout = function() {
+    console.log('Device registration timed out');
+  };
+
+  try {
+    xhr.send(JSON.stringify({
+      device_type: DEVICE_TYPE,
+      device_name: DEVICE_NAME,
+      app_version: APP_VERSION
+    }));
+  } catch (e) {
+    console.log('Failed to send device registration: ' + e);
+  }
+}
+
+/**
+ * Best-effort heartbeat. Never blocks or reports failure to the watch.
+ */
+function touchDevice() {
+  var deviceId = getDeviceId();
+  if (!deviceId || !getApiKey()) {
+    return;
+  }
+
+  var url = joinURL(getCIHost(), DEVICES_PATH) + '/' + encodeURIComponent(deviceId) + '/last-seen';
+  var xhr = new XMLHttpRequest();
+  xhr.timeout = DEVICE_TIMEOUT;
+  xhr.open('PATCH', url, true);
+  setAuthHeader(xhr);
+  xhr.onerror = function() { console.log('Device heartbeat network error'); };
+
+  try {
+    xhr.send();
+  } catch (e) {
+    console.log('Failed to send device heartbeat: ' + e);
   }
 }
 
 
 /* ==========================================================================
-   CI-Server integration
+   CI-Server memory recall (Recall Memory + Ask AI both use this)
    ========================================================================== */
 
 /**
- * Format an array of event objects into a compact string for watch display.
- * Shows at most 5 events (watch screen is small).
+ * POST /api/memory/recall — a per-turn hybrid (keyword/semantic) search
+ * against the user's CI-Server knowledge graph. Returns a markdown-formatted
+ * `block` of the matched memory content plus a `resultCount`. This is a
+ * plain JSON request/response (no streaming), which is what makes it usable
+ * from PebbleKit JS's XHR — CI-Server's own chat/generate endpoint streams a
+ * custom binary frame protocol meant for its web/mobile UI, not headless
+ * device clients (see docs/CI-Integration-Audit.md).
+ *
+ * "Ask AI" is therefore a recall over memory, not open-ended LLM chat: the
+ * watch shows retrieved memory content relevant to the question, not a
+ * generated conversational reply.
  */
-function formatEvents(events) {
-  if (!events || events.length === 0) {
-    return 'No recent events found.';
+function recallMemory(query, statusText) {
+  var trimmedQuery = trimString(query).substring(0, RECALL_QUERY_MAX_LEN);
+  if (!trimmedQuery) {
+    sendErrorToWatch('Empty question');
+    return;
   }
 
-  var maxEvents = Math.min(events.length, 5);
-  var lines = [];
-
-  for (var i = 0; i < maxEvents; i++) {
-    var ev = events[i];
-    var line = '';
-
-    if (ev.timestamp) {
-      try {
-        var d = new Date(ev.timestamp);
-        /* getMonth() returns 0-based month (0 = January), so add 1 */
-        line += (d.getMonth() + 1) + '/' + d.getDate() + ': ';
-      } catch (e) {
-        /* ignore date parse errors */
-      }
-    }
-
-    line += ev.description || ev.notes || ev.title || ev.type || '(event)';
-    lines.push(line);
-  }
-
-  if (events.length > maxEvents) {
-    lines.push('…+' + (events.length - maxEvents) + ' more');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Fetch recent memory events from the CI-Server and relay a summary to
- * the watch.  Falls back to the locally cached result on network failure.
- */
-function fetchMemoryEvents() {
-  var url = joinURL(getCIHost(), '/api/events');
-  console.log('Fetching events from: ' + url);
-  sendStatusToWatch('Fetching...');
+  var url = joinURL(getCIHost(), MEMORY_RECALL_PATH);
+  console.log('Recalling memory from: ' + url);
+  sendStatusToWatch(statusText || 'Thinking...');
 
   var xhr = new XMLHttpRequest();
   xhr.timeout = CI_TIMEOUT;
@@ -291,14 +357,17 @@ function fetchMemoryEvents() {
     if (xhr.status >= 200 && xhr.status < 300) {
       try {
         var data = JSON.parse(xhr.responseText);
-        var events = Array.isArray(data) ? data : (data.events || []);
-        var summary = formatEvents(events);
+        var summary = formatRecallResult(data);
         cacheResult(summary);
         sendResultToWatch(summary);
+        touchDevice();
       } catch (e) {
         console.log('JSON parse error: ' + e + '\nResponse: ' + xhr.responseText.substring(0, 200));
         sendErrorToWatch('Parse error');
       }
+    } else if (xhr.status === 401 || xhr.status === 403) {
+      console.log('CI-Server auth error: ' + xhr.status);
+      sendErrorToWatch('Check API key/scope');
     } else {
       console.log('HTTP error: ' + xhr.status + ' ' + xhr.statusText);
       sendErrorToWatch('Server error: ' + xhr.status);
@@ -306,7 +375,7 @@ function fetchMemoryEvents() {
   };
 
   xhr.onerror = function() {
-    console.log('Network error fetching events');
+    console.log('Network error calling CI-Server');
     var cached = localStorage.getItem(STORAGE_CACHE_KEY);
     if (cached) {
       sendResultToWatch('[Cached] ' + cached);
@@ -320,204 +389,129 @@ function fetchMemoryEvents() {
     sendErrorToWatch('Request timed out');
   };
 
-  xhr.open('GET', url, true);
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
   setAuthHeader(xhr);
 
   try {
-    xhr.send();
+    xhr.send(JSON.stringify({
+      query: trimmedQuery,
+      maxResults: RECALL_MAX_RESULTS
+    }));
   } catch (e) {
-    console.log('Failed to send XHR: ' + e);
+    console.log('Failed to send recall request: ' + e);
     sendErrorToWatch('Request failed');
   }
 }
 
+function formatRecallResult(data) {
+  var block = (data && data.block) ? String(data.block) : '';
+  var resultCount = data && typeof data.resultCount === 'number' ? data.resultCount : null;
+
+  if (!block || resultCount === 0) {
+    return 'Nothing relevant found in memory.';
+  }
+
+  return block;
+}
+
+function fetchMemoryEvents() {
+  recallMemory(DEFAULT_RECALL_QUERY, 'Fetching...');
+}
+
+function askMemory(question) {
+  recallMemory(question, 'Thinking...');
+}
+
 
 /* ==========================================================================
-   Ollama LLM integration
+   Passive location logging (POST /api/position)
    ========================================================================== */
 
 /**
- * Send a natural-language question to the Ollama /api/chat endpoint and
- * relay the assistant's reply back to the watch.
- *
- * @param {string} question – question typed/selected on the watch
+ * Build a single CreatePositionDto (CI-Server's real position schema) from a
+ * browser GeolocationPosition. There is no watch-side telemetry (like step
+ * counts) folded in here — CI-Server has no ingestion endpoint for that; see
+ * docs/CI-Integration-Audit.md.
  */
-function askOllamaAgent(question) {
-  var url = joinURL(getOllamaURL(), '/api/chat');
-  console.log('Asking Ollama (' + OLLAMA_MODEL + '): ' + question);
-  sendStatusToWatch('Thinking...');
-
-  var payload = JSON.stringify({
-    model: OLLAMA_MODEL,
-    stream: false,
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a concise personal assistant. Keep your answer under 200 characters as it will be shown on a Pebble smartwatch screen.'
-      },
-      {
-        role: 'user',
-        content: question
-      }
-    ]
-  });
-
-  var xhr = new XMLHttpRequest();
-  xhr.timeout = OLLAMA_TIMEOUT;
-
-  xhr.onload = function() {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        var data = JSON.parse(xhr.responseText);
-        var answer;
-
-        /* /api/chat response: { message: { role, content }, … } */
-        if (data.message && data.message.content) {
-          answer = data.message.content;
-        /* /api/generate response: { response: "…", … }          */
-        } else if (data.response) {
-          answer = data.response;
-        } else {
-          answer = JSON.stringify(data).substring(0, 200);
-        }
-
-        console.log('Ollama answer: ' + answer);
-        cacheResult(answer);
-        sendResultToWatch(answer);
-      } catch (e) {
-        console.log('JSON parse error for Ollama response: ' + e);
-        sendErrorToWatch('Parse error');
-      }
-    } else {
-      console.log('Ollama HTTP error: ' + xhr.status);
-      sendErrorToWatch('LLM error: ' + xhr.status);
-    }
+function buildPositionEntry(position) {
+  var entry = {
+    time: new Date().toISOString()
   };
 
-  xhr.onerror = function() {
-    console.log('Network error reaching Ollama');
-    sendErrorToWatch('LLM unavailable');
-  };
-
-  xhr.ontimeout = function() {
-    console.log('Ollama request timed out');
-    sendErrorToWatch('LLM timed out');
-  };
-
-  xhr.open('POST', url, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-
-  try {
-    xhr.send(payload);
-  } catch (e) {
-    console.log('Failed to send Ollama request: ' + e);
-    sendErrorToWatch('Request failed');
-  }
-}
-
-
-/* ==========================================================================
-   Passive health/location logging
-   ========================================================================== */
-
-function parseHealthQuery(query) {
-  var result = {};
-  var parts = String(query || '').split('&');
-  var i;
-
-  for (i = 0; i < parts.length; i++) {
-    if (!parts[i]) {
-      continue;
-    }
-
-    var pair = parts[i].split('=');
-    var key = pair[0];
-    var value = pair.length > 1 ? parseInt(pair[1], 10) : null;
-
-    if (key) {
-      result[key] = isNaN(value) ? pair[1] : value;
-    }
-  }
-
-  return result;
-}
-
-function buildPassiveLogPayload(healthQuery, position) {
-  var payload = {
-    timestamp: new Date().toISOString()
-  };
-  var key;
-  var healthMetrics = parseHealthQuery(healthQuery);
-
-  for (key in healthMetrics) {
-    if (healthMetrics.hasOwnProperty(key)) {
-      payload[key] = healthMetrics[key];
-    }
+  var deviceId = getDeviceId();
+  if (deviceId) {
+    entry.device_id = deviceId;
   }
 
   if (position && position.coords) {
-    payload.latitude = Number(position.coords.latitude.toFixed(6));
-    payload.longitude = Number(position.coords.longitude.toFixed(6));
-    payload.accuracy_m = Math.round(position.coords.accuracy || 0);
+    entry.location = {
+      x: position.coords.longitude,
+      y: position.coords.latitude
+    };
+    if (typeof position.coords.accuracy === 'number') {
+      entry.accuracy_meters = Math.max(position.coords.accuracy, 0.01);
+    }
   }
 
-  return payload;
+  return entry;
 }
 
-function postPassiveLog(payload) {
-  var url = joinURL(getCIHost(), PASSIVE_LOG_PATH);
+function postPosition(entry) {
+  var url = joinURL(getCIHost(), POSITION_PATH);
   var xhr = new XMLHttpRequest();
 
-  xhr.timeout = PASSIVE_LOG_TIMEOUT;
+  xhr.timeout = POSITION_TIMEOUT;
   xhr.open('POST', url, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   setAuthHeader(xhr);
 
   xhr.onload = function() {
     if (xhr.status >= 200 && xhr.status < 300) {
-      console.log('Passive log uploaded');
+      console.log('Position uploaded');
+      touchDevice();
     } else {
-      console.log('Passive log failed: ' + xhr.status);
+      console.log('Position upload failed: ' + xhr.status);
     }
   };
 
   xhr.onerror = function() {
-    console.log('Passive log network error');
+    console.log('Position upload network error');
   };
 
   xhr.ontimeout = function() {
-    console.log('Passive log timed out');
+    console.log('Position upload timed out');
   };
 
   try {
-    xhr.send(JSON.stringify(payload));
+    xhr.send(JSON.stringify([entry]));
   } catch (e) {
-    console.log('Failed to send passive log: ' + e);
+    console.log('Failed to send position: ' + e);
   }
 }
 
-function sendPassiveLog(healthQuery) {
+function sendPassiveLog() {
   var nav = typeof navigator !== 'undefined' ? navigator : null;
   var geolocation = nav && nav.geolocation;
 
-  if (geolocation && geolocation.getCurrentPosition) {
-    geolocation.getCurrentPosition(
-      function(position) {
-        postPassiveLog(buildPassiveLogPayload(healthQuery, position));
-      },
-      function(error) {
-        console.log('Geolocation unavailable: ' + (error && error.message ? error.message : error));
-        postPassiveLog(buildPassiveLogPayload(healthQuery, null));
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: LOCATION_CACHE_MAX_AGE,
-        timeout: 5000
-      }
-    );
-  } else {
-    postPassiveLog(buildPassiveLogPayload(healthQuery, null));
+  if (!geolocation || !geolocation.getCurrentPosition) {
+    console.log('Geolocation unavailable; skipping passive location log');
+    return;
   }
+
+  geolocation.getCurrentPosition(
+    function(position) {
+      postPosition(buildPositionEntry(position));
+    },
+    function(error) {
+      console.log('Geolocation unavailable: ' + (error && error.message ? error.message : error));
+    },
+    {
+      enableHighAccuracy: false,
+      maximumAge: LOCATION_CACHE_MAX_AGE,
+      timeout: 5000
+    }
+  );
 }
 
 function schedulePassiveLog() {
@@ -526,111 +520,15 @@ function schedulePassiveLog() {
   }
 
   passiveLogTimer = setTimeout(function() {
-    sendPassiveLog('');
+    sendPassiveLog();
     schedulePassiveLog();
   }, PASSIVE_LOG_INTERVAL);
 }
 
-
-/* ==========================================================================
-   CI-Server notifications
-   ========================================================================== */
-
-function getNotificationTimestamp(notification) {
-  return notification.timestamp || notification.created_at || notification.date || '';
-}
-
-/**
- * Convert a notification timestamp string into milliseconds since epoch for
- * reliable ordering across ISO-8601 and RFC-style date formats.
- *
- * @param {string} timestamp - Raw timestamp string from the CI-Server.
- * @returns {?number} Milliseconds since epoch, or null when parsing fails.
- */
-function getComparableTimestamp(timestamp) {
-  var parsed = Date.parse(timestamp);
-  return isNaN(parsed) ? null : parsed;
-}
-
-function pollNotifications() {
-  var url = joinURL(getCIHost(), NOTIFICATIONS_PATH);
-  var since = getNotificationCursor();
-  var xhr = new XMLHttpRequest();
-
-  if (since) {
-    url += '?since=' + encodeURIComponent(since);
-  }
-
-  xhr.timeout = NOTIFICATION_TIMEOUT;
-  xhr.open('GET', url, true);
-  setAuthHeader(xhr);
-
-  xhr.onload = function() {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        var data = JSON.parse(xhr.responseText);
-        var notifications = Array.isArray(data) ? data : (data.notifications || []);
-        var latestTimestamp = since;
-        var latestTimestampValue = getComparableTimestamp(since);
-        var i;
-
-        for (i = 0; i < notifications.length; i++) {
-          var notification = notifications[i];
-          notifyWatch(notification.title || 'CI Update',
-                      notification.body || notification.message || '');
-
-          var timestamp = getNotificationTimestamp(notification);
-          var timestampValue = getComparableTimestamp(timestamp);
-          if (timestampValue !== null &&
-              (latestTimestampValue === null || timestampValue > latestTimestampValue)) {
-            latestTimestamp = timestamp;
-            latestTimestampValue = timestampValue;
-          }
-        }
-
-        if (!latestTimestamp && notifications.length > 0) {
-          latestTimestamp = new Date().toISOString();
-        }
-        setNotificationCursor(latestTimestamp);
-      } catch (e) {
-        console.log('Notification parse error: ' + e);
-      }
-    } else {
-      console.log('Notification poll failed: ' + xhr.status);
-    }
-  };
-
-  xhr.onerror = function() {
-    console.log('Notification poll network error');
-  };
-
-  xhr.ontimeout = function() {
-    console.log('Notification poll timed out');
-  };
-
-  try {
-    xhr.send();
-  } catch (e) {
-    console.log('Failed to poll notifications: ' + e);
-  }
-}
-
-function scheduleNotificationPoll() {
-  if (notificationPollTimer) {
-    clearTimeout(notificationPollTimer);
-  }
-
-  notificationPollTimer = setTimeout(function() {
-    pollNotifications();
-    scheduleNotificationPoll();
-  }, NOTIFICATION_POLL_INTERVAL);
-}
-
 function restartBackgroundTasks() {
-  sendPassiveLog('');
+  registerDeviceIfNeeded();
+  sendPassiveLog();
   schedulePassiveLog();
-  scheduleNotificationPoll();
-  pollNotifications();
 }
 
 
@@ -644,8 +542,8 @@ Pebble.addEventListener('ready', function() {
   if (!localStorage.getItem(STORAGE_CI_HOST)) {
     console.log('No CI host configured; using default: ' + DEFAULT_CI_HOST);
   }
-  if (!localStorage.getItem(STORAGE_OLLAMA_URL)) {
-    console.log('No Ollama URL configured; using default: ' + DEFAULT_OLLAMA_URL);
+  if (!getApiKey()) {
+    console.log('No CI-Server API key configured yet; open settings to add one.');
   }
 
   restartBackgroundTasks();
@@ -666,10 +564,10 @@ Pebble.addEventListener('webviewclosed', function(e) {
     var previousCIHost = getCIHost();
     var nextCIHost = normalizeBaseURL(settings.ci_host);
     saveSetting(STORAGE_CI_HOST, settings.ci_host, normalizeBaseURL);
-    saveSetting(STORAGE_AUTH_TOKEN, settings.ci_auth_token, trimString);
-    saveSetting(STORAGE_OLLAMA_URL, settings.ollama_url, normalizeBaseURL);
+    saveSetting(STORAGE_API_KEY, settings.ci_api_key, trimString);
     if (nextCIHost !== previousCIHost) {
-      localStorage.removeItem(STORAGE_NOTIFICATION_CURSOR);
+      /* A device_id registered against the old host is meaningless here. */
+      localStorage.removeItem(STORAGE_DEVICE_ID);
     }
     restartBackgroundTasks();
   } catch (err) {
@@ -690,13 +588,9 @@ Pebble.addEventListener('appmessage', function(e) {
 
     case CMD_ASK_AGENT: {
       var question = payload[KEY_QUERY] || 'What are my recent activities?';
-      askOllamaAgent(question);
+      askMemory(question);
       break;
     }
-
-    case CMD_LOG_PASSIVE:
-      sendPassiveLog(payload[KEY_QUERY] || '');
-      break;
 
     default:
       console.log('Unknown command: ' + command);
