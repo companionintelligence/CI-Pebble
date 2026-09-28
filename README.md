@@ -98,9 +98,12 @@ CI-Pebble/
 │   └── js/
 │       └── pebble-js-app.js  # Phone companion – CI-Server calls
 ├── site/                 # Static Cloudflare Pages site for pebble.ci.computer
+├── assets/
+│   └── appstore/         # Icon + per-platform screenshots for the Rebble listing
 ├── docs/
 │   ├── CI-Integration-Audit.md
-│   └── screenshots/
+│   ├── appstore-listing.md
+│   └── screenshots/      # Screenshot of the pebble.ci.computer site itself
 └── README.md
 ```
 
@@ -109,22 +112,29 @@ CI-Pebble/
 ## Screenshots
 
 The setup page screenshot above is real (captured from the live deployment).
-Watch UI screenshots are not included here yet — the honest way to get them
-is straight from your own build, and they'll look right for whichever
-platform you actually ship to (Aplite/Basalt/Chalk/Diorite/Emery all render
-the menu differently). To add them:
+The watch UI screenshots below are **accurate mockups built from `main.c`'s
+actual menu strings and layout** (row text, row order, status bar) —
+not real emulator captures, since this environment has no Pebble SDK or
+emulator to produce those. They're faithful enough to use as-is (including
+for the appstore listing — see [Publishing to the appstore](#publishing-to-the-appstore)),
+but if you want pixel-perfect device captures instead:
 
 1. In [CloudPebble](https://cloudpebble.repebble.com/), open this project
    and use **Compile → Run in emulator** (pick a platform).
 2. Click through **Recall Memory**, **Ask AI**, and **Last Result** in the
    emulator.
-3. Use the emulator's built-in screenshot button (or your OS screenshot
-   tool on the emulator window) and drop the PNGs into
-   `docs/screenshots/`.
-4. Reference them here, e.g. `![Main menu](docs/screenshots/main-menu.png)`.
+3. Use the emulator's built-in screenshot button and overwrite the
+   matching file under `assets/appstore/screenshots/`.
 
-The same screenshots are what you'll upload to the Rebble Developer Portal
-when publishing — see [Publishing to the appstore](#publishing-to-the-appstore) below.
+| Basalt | Chalk (round) | Emery |
+|---|---|---|
+| ![Basalt main menu](assets/appstore/screenshots/basalt-01-main-menu.png) | ![Chalk main menu](assets/appstore/screenshots/chalk-01-main-menu.png) | ![Emery main menu](assets/appstore/screenshots/emery-01-main-menu.png) |
+| ![Basalt ask AI](assets/appstore/screenshots/basalt-02-ask-ai.png) | ![Chalk ask AI](assets/appstore/screenshots/chalk-02-ask-ai.png) | ![Emery ask AI](assets/appstore/screenshots/emery-02-ask-ai.png) |
+| ![Basalt recall result](assets/appstore/screenshots/basalt-03-recall-result.png) | ![Chalk recall result](assets/appstore/screenshots/chalk-03-recall-result.png) | ![Emery recall result](assets/appstore/screenshots/emery-03-recall-result.png) |
+
+Aplite (black & white) screenshots are also in
+[`assets/appstore/screenshots/`](assets/appstore/screenshots/); Diorite
+reuses the Basalt set (identical 144×168 color panel).
 
 ---
 
@@ -242,21 +252,27 @@ not a guess at one:
    (`aplite, basalt, chalk, diorite, emery`). Fix build errors before
    anything else — see Troubleshooting below for one that's already been
    hit and fixed in this repo.
-2. **Set the app's launcher icon.** This app doesn't ship one yet
-   (`appinfo.json`'s `resources.media` is empty). The safest way to add
-   one is through CloudPebble's project **Settings** tab, which has a
-   dedicated icon upload field and writes the correct `resources.media`
-   entry for you — hand-editing that JSON risks the same kind of
-   never-actually-compiled mistake the dictation status bug was (see the
-   audit doc). A simple 25×25–48×48 PNG is enough to start.
-3. **Take real screenshots** from the emulator (see
-   [Screenshots](#screenshots) above) — one set per platform you support,
-   up to 5 each.
+2. **Set the app's launcher icon.** This app doesn't ship one in
+   `appinfo.json`'s `resources.media` yet. Use
+   [`assets/appstore/icon/icon-48.png`](assets/appstore/icon/icon-48.png)
+   (or re-export [`icon-source.svg`](assets/appstore/icon/icon-source.svg)
+   at another size) and upload it through CloudPebble's project
+   **Settings** tab, which has a dedicated icon field and writes the
+   correct `resources.media` entry for you — hand-editing that JSON risks
+   the same kind of never-actually-compiled mistake the dictation status
+   bug was (see the audit doc).
+3. **Screenshots** — [`assets/appstore/screenshots/`](assets/appstore/screenshots/)
+   already has a full set per platform (see [Screenshots](#screenshots)
+   above); swap in real emulator captures first if you want those instead.
 4. **Create the app listing** on the
-   [Developer Portal](https://dev-portal.rebble.io/): name, description
-   (≤1600 characters), category, the large and small store icons, your
-   screenshots, and optionally a marketing banner (templates linked from
-   Rebble's [appstore-assets guide](https://developer.rebble.io/guides/appstore-publishing/appstore-assets/)).
+   [Developer Portal](https://dev-portal.rebble.io/): name, description,
+   category, the large ([`icon-144.png`](assets/appstore/icon/icon-144.png))
+   and small ([`icon-48.png`](assets/appstore/icon/icon-48.png)) store
+   icons, and your screenshots. **All the actual copy — description,
+   category recommendation, hardware compatibility, privacy notes — is
+   pre-written in [`docs/appstore-listing.md`](docs/appstore-listing.md),**
+   field-mapped to what the portal asks for; it's meant to be copy-pasted,
+   not re-derived.
 5. **Upload the `.pbw`** as a release on that listing and submit for
    review, per Rebble's
    [publishing-an-app guide](https://developer.rebble.io/guides/appstore-publishing/publishing-an-app/).
