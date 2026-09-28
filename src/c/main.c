@@ -1,22 +1,26 @@
 /**
- * CI Digital Memory – Pebble Watch App (main.c)
+ * Companion Memory for Pebble: watch app (main.c)
  *
- * Provides a Pebble UI for recalling memory from, and asking questions
- * against, the Companion Intelligence (CI) Digital Memory server (CI-Server)
- * via the paired phone. The watch never talks to Ollama or any other
- * backend directly — see ../../docs/CI-Integration-Audit.md.
+ * Recall from, and ask questions against, your Companion Memory (CI-Server)
+ * via the paired phone. The watch never talks to Ollama or any other backend
+ * directly; see ../../docs/CI-Integration-Audit.md.
  *
- * Architecture: Watch (C) ↔ Phone (PebbleKit JS) ↔ CI-Server
+ * Architecture: Watch (C) <-> Phone (PebbleKit JS) <-> CI-Server
  *
  * AppMessage keys (must match appinfo.json "appKeys" and pebble-js-app.js):
- *   KEY_COMMAND  0 – command code sent to phone
- *   KEY_QUERY    1 – optional text payload (question / query string)
- *   KEY_RESULT   2 – result string received from phone
- *   KEY_ERROR    3 – error string received from phone
- *   KEY_STATUS   4 – transient status text from phone (e.g. "Loading…")
+ *   KEY_COMMAND  0  command code sent to phone
+ *   KEY_QUERY    1  optional text payload (question)
+ *   KEY_RESULT   2  result string received from phone
+ *   KEY_ERROR    3  error string received from phone
+ *   KEY_STATUS   4  transient status text from phone
+ *
+ * Colours come from brand.h, generated from the CI-Common canon by
+ * scripts/sync-brand.mjs. Pebble quantises them to its own palette at build
+ * time, and black-and-white platforms fall back to black and white.
  */
 
 #include <pebble.h>
+#include "brand.h"
 
 /* ---- AppMessage key constants ------------------------------------------- */
 #define KEY_COMMAND 0
@@ -34,6 +38,13 @@
 
 /* ---- Buffer sizes --------------------------------------------------------- */
 #define MAX_RESULT_LEN 256
+#define STATUS_LEN     32
+
+/* ---- Brand colours ------------------------------------------------------- */
+#define BRAND_PRIMARY    PBL_IF_COLOR_ELSE(GColorFromHEX(CI_LIGHT_PRIMARY), GColorBlack)
+#define BRAND_ON_PRIMARY GColorWhite
+#define BRAND_BACKGROUND GColorWhite
+#define BRAND_TEXT       GColorBlack
 
 /* ---- Result window layout constants -------------------------------------- */
 /* Extra padding added to text layer height so the last line is never clipped
@@ -43,14 +54,23 @@
  * the scroll layer's content size. */
 #define SCROLL_CONTENT_PADDING 8
 
-/* ---- Predefined agent questions ------------------------------------------ */
-static const char *s_agent_questions[] = {
-  "What are my top goals?",
-  "Who did I meet last week?",
-  "What are my upcoming events?",
-  "Summarize my recent activity",
+/* ---- Copy ---------------------------------------------------------------- */
+#define STATUS_READY "Companion Memory"
+
+/* ---- Predefined questions ------------------------------------------------
+ * Short labels fit the 144 px screens; the full sentence is what gets asked. */
+typedef struct {
+  const char *label;
+  const char *question;
+} Question;
+
+static const Question s_questions[] = {
+  { "My goals",        "What are my top goals?" },
+  { "Last week",       "Who did I meet last week?" },
+  { "Coming up",       "What are my upcoming events?" },
+  { "Recent activity", "Summarize my recent activity" },
 };
-#define NUM_QUESTIONS ((int)(sizeof(s_agent_questions) / sizeof(s_agent_questions[0])))
+#define NUM_QUESTIONS ((int)(sizeof(s_questions) / sizeof(s_questions[0])))
 
 /* ---- Windows ------------------------------------------------------------- */
 static Window *s_main_window;
@@ -59,7 +79,7 @@ static Window *s_question_window;
 
 /* ---- Main menu ----------------------------------------------------------- */
 static MenuLayer *s_main_menu;
-static TextLayer *s_status_text;
+static char       s_status[STATUS_LEN] = STATUS_READY;
 
 /* ---- Result / scroll window ---------------------------------------------- */
 static ScrollLayer *s_scroll_layer;
@@ -79,6 +99,30 @@ static void send_command(uint8_t cmd, const char *query);
 
 
 /* ==========================================================================
+   Status line (the main menu header doubles as the status bar, so it also
+   works on round screens where a bottom bar would be clipped)
+   ========================================================================== */
+
+static void set_status(const char *text) {
+  strncpy(s_status, text, STATUS_LEN - 1);
+  s_status[STATUS_LEN - 1] = '\0';
+  if (s_main_menu) {
+    layer_mark_dirty(menu_layer_get_layer(s_main_menu));
+  }
+}
+
+static void style_menu(MenuLayer *menu) {
+#if defined(PBL_COLOR)
+  menu_layer_set_normal_colors(menu, BRAND_BACKGROUND, BRAND_TEXT);
+  menu_layer_set_highlight_colors(menu, BRAND_PRIMARY, BRAND_ON_PRIMARY);
+#endif
+#if defined(PBL_ROUND)
+  menu_layer_set_center_focused(menu, true);
+#endif
+}
+
+
+/* ==========================================================================
    AppMessage callbacks
    ========================================================================== */
 
@@ -89,21 +133,22 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 
   if (status_tuple) {
     APP_LOG(APP_LOG_LEVEL_INFO, "Status: %s", status_tuple->value->cstring);
-    if (s_status_text) {
-      text_layer_set_text(s_status_text, status_tuple->value->cstring);
-    }
+    set_status(status_tuple->value->cstring);
   }
 
   if (result_tuple) {
     const char *result = result_tuple->value->cstring;
     APP_LOG(APP_LOG_LEVEL_INFO, "Result received (first 50 chars): %.50s", result);
     persist_write_string(PERSIST_KEY_LAST_RESULT, result);
+    set_status(STATUS_READY);
+    vibes_short_pulse();
     result_window_push(result);
   }
 
   if (error_tuple) {
     const char *err = error_tuple->value->cstring;
     APP_LOG(APP_LOG_LEVEL_ERROR, "Error received: %s", err);
+    set_status(STATUS_READY);
     result_window_push(err);
   }
 }
@@ -115,9 +160,7 @@ static void inbox_dropped_handler(AppMessageResult reason, void *context) {
 static void outbox_failed_handler(DictionaryIterator *iter,
                                    AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed, reason: %d", (int)reason);
-  if (s_status_text) {
-    text_layer_set_text(s_status_text, "Send failed");
-  }
+  set_status("Phone unreachable");
 }
 
 static void outbox_sent_handler(DictionaryIterator *iter, void *context) {
@@ -137,6 +180,7 @@ static void send_command(uint8_t cmd, const char *query) {
   AppMessageResult result = app_message_outbox_begin(&iter);
   if (result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to open outbox: %d", (int)result);
+    set_status("Phone busy, try again");
     return;
   }
 
@@ -148,11 +192,10 @@ static void send_command(uint8_t cmd, const char *query) {
   result = app_message_outbox_send();
   if (result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to send message: %d", (int)result);
+    set_status("Phone unreachable");
   } else {
     APP_LOG(APP_LOG_LEVEL_INFO, "Command %d sent to phone", (int)cmd);
-    if (s_status_text) {
-      text_layer_set_text(s_status_text, "Loading...");
-    }
+    set_status("Asking your phone...");
   }
 }
 
@@ -180,10 +223,14 @@ static void result_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
+  window_set_background_color(window, BRAND_BACKGROUND);
+
   /* Text layer with auto-height for word-wrapping */
   s_result_text = text_layer_create(GRect(4, 4, bounds.size.w - 8, 2000));
   text_layer_set_font(s_result_text,
                       fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_text_color(s_result_text, BRAND_TEXT);
+  text_layer_set_background_color(s_result_text, GColorClear);
   text_layer_set_overflow_mode(s_result_text, GTextOverflowModeWordWrap);
   text_layer_set_text(s_result_text, s_result_buf);
 
@@ -192,6 +239,12 @@ static void result_window_load(Window *window) {
   scroll_layer_set_click_config_onto_window(s_scroll_layer, window);
   scroll_layer_add_child(s_scroll_layer, text_layer_get_layer(s_result_text));
   layer_add_child(root, scroll_layer_get_layer(s_scroll_layer));
+
+#if defined(PBL_ROUND)
+  /* Flow text inside the circle instead of clipping it at the edges. */
+  text_layer_enable_screen_text_flow_and_paging(s_result_text, 8);
+  scroll_layer_set_paging(s_scroll_layer, true);
+#endif
 
   /* Size text and scroll layers to fit content */
   result_update_sizing(bounds);
@@ -248,17 +301,15 @@ static void dictation_session_callback(DictationSession *session,
   if (status == DictationSessionStatusSuccess && transcription &&
       transcription[0] != '\0') {
     send_command(CMD_ASK_AGENT, transcription);
-  } else if (s_status_text) {
+  } else {
     /* DictationSessionStatusFailureTranscriptionRejected is what the SDK
-     * reports when the user reviews the transcription and dismisses it —
-     * every other failure value (timeout, no speech, connectivity,
+     * reports when the user reviews the transcription and dismisses it.
+     * Every other failure value (timeout, no speech, connectivity,
      * disabled, internal/recognizer error) is a real failure, not a
-     * cancellation. (The previous check compared against a status name
-     * that doesn't exist in the SDK and never actually compiled.) */
-    text_layer_set_text(s_status_text,
-                        status == DictationSessionStatusFailureTranscriptionRejected
-                            ? "Dictation canceled"
-                            : "Dictation failed");
+     * cancellation. */
+    set_status(status == DictationSessionStatusFailureTranscriptionRejected
+                   ? "Dictation canceled"
+                   : "Dictation failed");
   }
 }
 
@@ -269,12 +320,11 @@ static void start_dictation_session(void) {
                                                    NULL);
   }
 
-  if (s_status_text) {
-    text_layer_set_text(s_status_text, "Listening...");
-  }
+  set_status("Listening...");
   dictation_session_start(s_dictation_session);
 }
 #endif
+
 
 /* ==========================================================================
    Question selection window
@@ -293,8 +343,7 @@ static void question_menu_draw_row(GContext *ctx, const Layer *cell_layer,
                                    MenuIndex *cell_index, void *context) {
 #if defined(PBL_MICROPHONE)
   if (cell_index->row == 0) {
-    menu_cell_basic_draw(ctx, cell_layer, "Speak question",
-                         "Use Pebble Dictation", NULL);
+    menu_cell_basic_draw(ctx, cell_layer, "Speak", "Use dictation", NULL);
     return;
   }
   const int question_index = cell_index->row - 1;
@@ -302,8 +351,7 @@ static void question_menu_draw_row(GContext *ctx, const Layer *cell_layer,
   const int question_index = cell_index->row;
 #endif
 
-  menu_cell_basic_draw(ctx, cell_layer,
-                       s_agent_questions[question_index], NULL, NULL);
+  menu_cell_basic_draw(ctx, cell_layer, s_questions[question_index].label, NULL, NULL);
 }
 
 static void question_menu_select(MenuLayer *menu_layer, MenuIndex *cell_index,
@@ -314,9 +362,9 @@ static void question_menu_select(MenuLayer *menu_layer, MenuIndex *cell_index,
     start_dictation_session();
     return;
   }
-  const char *question = s_agent_questions[cell_index->row - 1];
+  const char *question = s_questions[cell_index->row - 1].question;
 #else
-  const char *question = s_agent_questions[cell_index->row];
+  const char *question = s_questions[cell_index->row].question;
 #endif
 
   APP_LOG(APP_LOG_LEVEL_INFO, "Question selected: %s", question);
@@ -328,12 +376,15 @@ static void question_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
+  window_set_background_color(window, BRAND_BACKGROUND);
+
   s_question_menu = menu_layer_create(bounds);
   menu_layer_set_callbacks(s_question_menu, NULL, (MenuLayerCallbacks){
     .get_num_rows = question_menu_num_rows,
     .draw_row     = question_menu_draw_row,
     .select_click = question_menu_select,
   });
+  style_menu(s_question_menu);
   menu_layer_set_click_config_onto_window(s_question_menu, window);
   layer_add_child(root, menu_layer_get_layer(s_question_menu));
 }
@@ -360,8 +411,8 @@ static void show_question_window(void) {
    ========================================================================== */
 
 #define MAIN_MENU_ITEM_RECALL  0
-#define MAIN_MENU_ITEM_ASK_AI  1
-#define MAIN_MENU_ITEM_CACHED  2
+#define MAIN_MENU_ITEM_ASK     1
+#define MAIN_MENU_ITEM_LAST    2
 #define MAIN_MENU_ITEM_COUNT   3
 
 static uint16_t main_menu_num_rows(MenuLayer *menu_layer,
@@ -369,20 +420,36 @@ static uint16_t main_menu_num_rows(MenuLayer *menu_layer,
   return MAIN_MENU_ITEM_COUNT;
 }
 
+static int16_t main_menu_header_height(MenuLayer *menu_layer,
+                                       uint16_t section_index, void *context) {
+  return MENU_CELL_BASIC_HEADER_HEIGHT;
+}
+
+static void main_menu_draw_header(GContext *ctx, const Layer *cell_layer,
+                                  uint16_t section_index, void *context) {
+  GRect bounds = layer_get_bounds(cell_layer);
+  graphics_context_set_fill_color(ctx, BRAND_PRIMARY);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  graphics_context_set_text_color(ctx, BRAND_ON_PRIMARY);
+  graphics_draw_text(ctx, s_status,
+                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                     GRect(0, -1, bounds.size.w, bounds.size.h),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+}
+
+/* Subtitles stay under about 20 characters so they fit the 144 px screens. */
 static void main_menu_draw_row(GContext *ctx, const Layer *cell_layer,
                                MenuIndex *cell_index, void *context) {
   switch (cell_index->row) {
     case MAIN_MENU_ITEM_RECALL:
-      menu_cell_basic_draw(ctx, cell_layer,
-                           "Recall Memory", "What's going on right now", NULL);
+      menu_cell_basic_draw(ctx, cell_layer, "Recall", "Latest from Memory", NULL);
       break;
-    case MAIN_MENU_ITEM_ASK_AI:
-      menu_cell_basic_draw(ctx, cell_layer,
-                           "Ask AI", "Search your memory", NULL);
+    case MAIN_MENU_ITEM_ASK:
+      menu_cell_basic_draw(ctx, cell_layer, "Ask", "Search your Memory", NULL);
       break;
-    case MAIN_MENU_ITEM_CACHED:
-      menu_cell_basic_draw(ctx, cell_layer,
-                           "Last Result", "View cached response", NULL);
+    case MAIN_MENU_ITEM_LAST:
+      menu_cell_basic_draw(ctx, cell_layer, "Last answer", "Saved on this watch", NULL);
       break;
     default:
       break;
@@ -396,18 +463,18 @@ static void main_menu_select(MenuLayer *menu_layer, MenuIndex *cell_index,
       send_command(CMD_FETCH_EVENTS, NULL);
       break;
 
-    case MAIN_MENU_ITEM_ASK_AI:
+    case MAIN_MENU_ITEM_ASK:
       show_question_window();
       break;
 
-    case MAIN_MENU_ITEM_CACHED: {
-      char cached[MAX_RESULT_LEN];
+    case MAIN_MENU_ITEM_LAST: {
+      char saved[MAX_RESULT_LEN];
       int bytes = persist_read_string(PERSIST_KEY_LAST_RESULT,
-                                      cached, MAX_RESULT_LEN);
+                                      saved, MAX_RESULT_LEN);
       if (bytes > 0) {
-        result_window_push(cached);
+        result_window_push(saved);
       } else {
-        result_window_push("No cached result.");
+        result_window_push("Nothing saved yet. Run Recall first.");
       }
       break;
     }
@@ -426,33 +493,25 @@ static void main_window_load(Window *window) {
   Layer *root   = window_get_root_layer(window);
   GRect  bounds = layer_get_bounds(root);
 
-  /* Status bar pinned to the bottom */
-  s_status_text = text_layer_create(
-      GRect(0, bounds.size.h - 18, bounds.size.w, 18));
-  text_layer_set_font(s_status_text,
-                      fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(s_status_text, GTextAlignmentCenter);
-  text_layer_set_text(s_status_text, "CI Digital Memory");
-  layer_add_child(root, text_layer_get_layer(s_status_text));
+  window_set_background_color(window, BRAND_BACKGROUND);
 
-  /* Main menu above status bar */
-  GRect menu_bounds = GRect(0, 0, bounds.size.w, bounds.size.h - 18);
-  s_main_menu = menu_layer_create(menu_bounds);
+  s_main_menu = menu_layer_create(bounds);
   menu_layer_set_callbacks(s_main_menu, NULL, (MenuLayerCallbacks){
-    .get_num_rows    = main_menu_num_rows,
-    .draw_row        = main_menu_draw_row,
-    .select_click    = main_menu_select,
-    .get_cell_height = main_menu_cell_height,
+    .get_num_rows      = main_menu_num_rows,
+    .get_header_height = main_menu_header_height,
+    .draw_header       = main_menu_draw_header,
+    .draw_row          = main_menu_draw_row,
+    .select_click      = main_menu_select,
+    .get_cell_height   = main_menu_cell_height,
   });
+  style_menu(s_main_menu);
   menu_layer_set_click_config_onto_window(s_main_menu, window);
   layer_add_child(root, menu_layer_get_layer(s_main_menu));
 }
 
 static void main_window_unload(Window *window) {
   menu_layer_destroy(s_main_menu);
-  text_layer_destroy(s_status_text);
-  s_main_menu   = NULL;
-  s_status_text = NULL;
+  s_main_menu = NULL;
 }
 
 
@@ -479,7 +538,7 @@ static void init(void) {
   });
   window_stack_push(s_main_window, true /* animated */);
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app initialized");
+  APP_LOG(APP_LOG_LEVEL_INFO, "Companion Memory app initialized");
 }
 
 static void deinit(void) {
@@ -492,7 +551,7 @@ static void deinit(void) {
   if (s_result_window)   { window_destroy(s_result_window);   }
   if (s_question_window) { window_destroy(s_question_window); }
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "CI Digital Memory app deinitialized");
+  APP_LOG(APP_LOG_LEVEL_INFO, "Companion Memory app deinitialized");
 }
 
 int main(void) {

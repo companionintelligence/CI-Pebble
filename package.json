@@ -1,0 +1,14 @@
+{
+  "name": "ci-pebble",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Companion Memory for Pebble: watch app, phone companion, and pebble.ci.computer",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "brand:sync": "node scripts/sync-brand.mjs",
+    "brand:check": "node scripts/sync-brand.mjs --check",
+    "build": "scripts/build-modern.sh",
+    "shots": "scripts/emulator-shots.sh"
+  }
+}

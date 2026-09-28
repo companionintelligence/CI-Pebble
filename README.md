@@ -1,334 +1,184 @@
-# Companion Pebble
+<div align="center">
 
-Companion Pebble smartwatch app that acts as a wearable interface for the
-[Companion Intelligence (CI) Digital Memory server](https://github.com/companionintelligence/CI-Server)
-(CI-Server).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/assets/brand/lockup.svg">
+  <img src="site/assets/brand/lockup-on-light.svg" alt="Companion Intelligence" height="56">
+</picture>
 
-> **Looking for the connection audit?** See
-> [`docs/CI-Integration-Audit.md`](docs/CI-Integration-Audit.md) for a
-> ground-truth comparison of what this app calls against CI-Server's real
-> API, and what changed.
+# Companion Memory for Pebble
 
-![Companion Pebble setup page](docs/screenshots/site-landing.png)
+<!-- BEGIN GENERATED tagline -->
+**Your AI remembers, because it's yours.**
+<!-- END GENERATED tagline -->
 
-The setup page above is live at [pebble.ci.computer](https://pebble.ci.computer)
-(source in [`site/`](site/)).
+Recall and search your Companion Memory from your wrist. The watch asks your phone, your phone asks
+the Memory you host, and the answer comes back with a short buzz.
+
+[![Pebble platforms](https://img.shields.io/badge/Pebble-Aplite%20%C2%B7%20Basalt%20%C2%B7%20Chalk%20%C2%B7%20Diorite%20%C2%B7%20Emery-0a6358)](docs/appstore-listing.md)
+[![SDK 3](https://img.shields.io/badge/SDK-3-0a6358)](appinfo.json)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-0a6358)](LICENSE.md)
+[![Site](https://img.shields.io/badge/site-pebble.ci.computer-0a6358)](https://pebble.ci.computer)
+
+[**Set up in four steps**](#set-up-in-four-steps) &nbsp;·&nbsp;
+[Roadmap](docs/ROADMAP.md) &nbsp;·&nbsp;
+[Connection audit](docs/CI-Integration-Audit.md) &nbsp;·&nbsp;
+[Store listing](docs/appstore-listing.md)
+
+<br>
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/appstore/screenshots/basalt-01-main-menu.png" width="216" alt="Main menu on Pebble Time"><br><sub>Pebble Time</sub></td>
+    <td align="center"><img src="assets/appstore/screenshots/chalk-03-answer.png" width="216" alt="An answer on Pebble Time Round"><br><sub>Time Round</sub></td>
+    <td align="center"><img src="assets/appstore/screenshots/emery-02-ask.png" width="216" alt="The Ask list on Pebble Time 2"><br><sub>Time 2</sub></td>
+    <td align="center"><img src="assets/appstore/screenshots/aplite-03-answer.png" width="216" alt="An answer on the original Pebble"><br><sub>Original Pebble, black and white</sub></td>
+  </tr>
+</table>
+
+<sub>Every screenshot in this repository is captured from the real app on the Pebble emulator by <a href="scripts/emulator-shots.sh"><code>scripts/emulator-shots.sh</code></a>.</sub>
+
+</div>
 
 ---
 
-## Architecture
+## What it does
+
+| | |
+|---|---|
+| **Recall** | The latest from your Memory in one press. |
+| **Ask** | Pick a question, or speak your own on watches with a microphone. Your Memory searches what you saved and returns the lines that match. |
+| **Last answer** | Your most recent answer stays on the watch, so it is there offline. |
+| **Connection check** | After you save settings, the phone tells you what works: Recall and Ask, watch registration, location sync. |
+| **Location sync** | Off by default. Every 15 minutes it can send one location sample to your Memory. |
+
+An answer buzzes the watch and appears as short bullet lines. Errors state a fact and a fix, for
+example "Key rejected. Paste it again in settings."
+
+## How it works
 
 ```mermaid
 flowchart LR
-    Watch["Pebble Watch\n(C, main.c)"]
-    Phone["Phone Companion\n(PebbleKit JS)"]
-    Server["CI-Server\n(your appliance)"]
-
-    Watch <-->|Bluetooth\nAppMessage| Phone
-    Phone <-->|HTTPS\nx-api-key| Server
-
-    Ollama["Ollama / LLM backend"]
-    Hub["CI-Hub\n(app runtime)"]
-
-    Server -.->|internal only| Ollama
-    Server -.->|internal, signed| Hub
+    W["Watch<br/>C, main.c"] <-->|"Bluetooth<br/>AppMessage"| P["Phone companion<br/>PebbleKit JS"]
+    P <-->|"HTTPS<br/>x-api-key"| S["Companion Memory<br/>CI-Server"]
+    S -.->|"internal only"| O["Ollama"]
+    S -.->|"internal, signed"| H["Companion Hub"]
 
     classDef never fill:#f8d7da,stroke:#c0392b,stroke-dasharray: 4 3;
-    class Ollama,Hub never;
+    class O,H never;
 ```
 
-All heavy processing happens off the watch. The watch UI sends small
-AppMessage packets over Bluetooth to the phone companion, which makes a
-single authenticated HTTPS call to CI-Server, then relays the result back
-to the watch. The dashed red boxes are never reached by this app directly —
-they're CI-Server's own concern.
-
-**CI-Server is the only service this app talks to.** Two things it
-deliberately never does, both covered in the audit doc:
-
-- **It never calls Ollama directly.** Ollama is CI-Server's own internal LLM
-  backend (or an OpenAI-compatible endpoint CI-Server is configured to use
-  instead) — CI-Server owns model selection, tool-calling, and conversation
-  state. A watch companion has no business holding a second, unauthenticated
-  connection straight into that backend.
-- **It never calls CI-Hub.** CI-Hub is the appliance's local app runtime for
-  installed marketplace apps; CI-Server-to-Hub traffic is internal,
-  signed service-to-service messaging (used e.g. to wake an installed
-  agent app), not a surface external device clients are meant to reach.
-
-### Data-flow sequence
+The watch never touches the network. The phone makes one authenticated call to your Memory and nothing
+else. The dashed boxes are things your Memory talks to; this app never does.
 
 ```mermaid
 sequenceDiagram
-    participant W as Pebble Watch
-    participant P as Phone Companion
-    participant S as CI-Server
-
-    W->>P: CMD_FETCH_EVENTS
-    P->>S: POST /api/memory/recall<br/>{query: "what's going on"}
+    participant W as Watch
+    participant P as Phone
+    participant S as Companion Memory
+    W->>P: Recall, or Ask with a question
+    P->>W: Status "Searching Memory..."
+    P->>S: POST /api/memory/recall {query, maxResults}
     S-->>P: {block, resultCount}
-    P->>W: KEY_RESULT
-
-    Note over W,S: "Ask AI" is the same call, only the query differs
-
-    W->>P: CMD_ASK_AGENT (question)
-    P->>S: POST /api/memory/recall<br/>{query: question}
-    S-->>P: {block, resultCount}
-    P->>W: KEY_RESULT
+    Note over P: Pull the memory lines out of the prompt-style block,<br/>tidy dates, fit 252 characters
+    P->>W: Answer, then a short buzz
 ```
 
-`Recall Memory` and `Ask AI` are the same CI-Server call
-(`POST /api/memory/recall`) with a different `query` string: a fixed
-"what's going on" prompt for Recall Memory, the user's typed/dictated
-question for Ask AI. Both return a markdown block of **retrieved** memory
-content — a semantic search result, not a generated conversational
-answer. See the audit doc for why.
+Recall and Ask are the same server call with a different `query`. The answer is a search over
+what you saved, not a generated reply. The reasons are in the [audit](docs/CI-Integration-Audit.md).
 
----
+## Set up in four steps
 
-## Project structure
-
-```
-CI-Pebble/
-├── appinfo.json          # Pebble app metadata, AppMessage key definitions
-├── wscript               # Pebble SDK (WAF) build script
-├── src/
-│   ├── c/
-│   │   └── main.c        # Watch C app – UI, AppMessage, persistent storage
-│   └── js/
-│       └── pebble-js-app.js  # Phone companion – CI-Server calls
-├── site/                 # Static Cloudflare Pages site for pebble.ci.computer
-├── assets/
-│   └── appstore/         # Icon + per-platform screenshots for the Rebble listing
-├── docs/
-│   ├── CI-Integration-Audit.md
-│   ├── appstore-listing.md
-│   └── screenshots/      # Screenshot of the pebble.ci.computer site itself
-└── README.md
-```
-
----
-
-## Screenshots
-
-The setup page screenshot above is real (captured from the live deployment).
-The watch UI screenshots below are **accurate mockups built from `main.c`'s
-actual menu strings and layout** (row text, row order, status bar) —
-not real emulator captures, since this environment has no Pebble SDK or
-emulator to produce those. They're faithful enough to use as-is (including
-for the appstore listing — see [Publishing to the appstore](#publishing-to-the-appstore)),
-but if you want pixel-perfect device captures instead:
-
-1. In [CloudPebble](https://cloudpebble.repebble.com/), open this project
-   and use **Compile → Run in emulator** (pick a platform).
-2. Click through **Recall Memory**, **Ask AI**, and **Last Result** in the
-   emulator.
-3. Use the emulator's built-in screenshot button and overwrite the
-   matching file under `assets/appstore/screenshots/`.
-
-| Basalt | Chalk (round) | Emery |
-|---|---|---|
-| ![Basalt main menu](assets/appstore/screenshots/basalt-01-main-menu.png) | ![Chalk main menu](assets/appstore/screenshots/chalk-01-main-menu.png) | ![Emery main menu](assets/appstore/screenshots/emery-01-main-menu.png) |
-| ![Basalt ask AI](assets/appstore/screenshots/basalt-02-ask-ai.png) | ![Chalk ask AI](assets/appstore/screenshots/chalk-02-ask-ai.png) | ![Emery ask AI](assets/appstore/screenshots/emery-02-ask-ai.png) |
-| ![Basalt recall result](assets/appstore/screenshots/basalt-03-recall-result.png) | ![Chalk recall result](assets/appstore/screenshots/chalk-03-recall-result.png) | ![Emery recall result](assets/appstore/screenshots/emery-03-recall-result.png) |
-
-Aplite (black & white) screenshots are also in
-[`assets/appstore/screenshots/`](assets/appstore/screenshots/); Diorite
-reuses the Basalt set (identical 144×168 color panel).
-
----
-
-## Features
-
-| Feature | Description |
-|---|---|
-| **Recall Memory** | Calls `POST /api/memory/recall` with a fixed prompt and shows the returned memory summary on the watch |
-| **Ask AI** | Presents predefined questions and, on microphone-equipped watches, a Pebble Dictation option for ad-hoc questions — each one is sent to `POST /api/memory/recall` as the `query` |
-| **Last Result** | Shows the last response cached in Pebble persistent storage (works offline) |
-| **Configuration page** | Lets you set the CI-Server URL and API key from the Pebble phone app |
-| **Passive sync** | Every 15 minutes, uploads a phone geolocation sample to `POST /api/position` when location permission is available. No step-count/health telemetry is sent — CI-Server has no live ingestion endpoint for it (bulk Apple Health / Google Fit import is a separate, unrelated CI-Server feature) |
-| **Device registration** | Registers itself once as a CI-Server `smartwatch` device (`POST /api/devices`) and heartbeats it (`PATCH /api/devices/:id/last-seen`) so it shows up in the user's device list |
-| **Status bar** | Shows transient status ("Loading…", "Thinking…", "Send failed") at the bottom of the main window |
-| **Error handling** | Network errors, JSON parse failures, and AppMessage drops are all caught and reported gracefully |
-
-**Not currently offered:** server-pushed notifications. CI-Server's
-notification mechanism is Web Push (VAPID), which isn't something a
-PebbleKit JS companion can subscribe to, and there is no pollable REST
-feed to fall back to. See the audit doc's Open Gaps section before
-re-adding this to the feature list.
-
----
-
-## Requirements
-
-| Component | Details |
-|---|---|
-| Pebble SDK | 3.x (any platform: Aplite, Basalt, Chalk, Diorite, Emery) |
-| CI-Server | A running appliance exposing `POST /api/memory/recall`, `POST /api/devices`, and `POST /api/position` (all present on any current CI-Server build) |
-| CI-Server API key | Created on CI-Server under Settings → API Keys with the **`memory`** scope enabled |
-| Phone | Android (recommended) or iOS with HTTPS access to CI-Server |
-
-Ollama and CI-Hub are **not** requirements from this app's point of view —
-they're CI-Server's own concern (CI-Server talks to Ollama internally; it
-has no dependency on CI-Hub at all for anything this app uses).
-
----
-
-## Setup
-
-### 1 – Install Pebble SDK
+**1. Create an API key.** In Companion Memory open Settings, API keys, and create one with the
+`memory` scope. Check it from any terminal:
 
 ```bash
-# Install the Pebble SDK and confirm the CLI works
-pebble sdk install latest
-pebble --version
-```
-
-### 2 – Get a CI-Server API key
-
-Start (or use your existing) CI-Server appliance, then create an API key
-with the `memory` scope from its Settings → API Keys screen. Verify the
-appliance is reachable and the key works:
-
-```bash
-curl -X POST https://ci-server.local/api/memory/recall \
-  -H "x-api-key: <your-api-key>" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-memory.example/api/memory/recall \
+  -H "x-api-key: YOUR_KEY" -H "Content-Type: application/json" \
   -d '{"query": "what happened recently?", "maxResults": 3}'
 ```
 
-A `{"block": "...", "resultCount": N}` response means you're set.
-
-### 3 – Configure the phone companion
-
-By default the companion uses:
-
-| Setting | Default |
-|---|---|
-| CI-Server base URL | `https://ci-server.local` |
-
-Open the Pebble phone app, tap the gear next to **CI Memory**, and save:
-
-| Setting | Purpose |
-|---|---|
-| CI-Server URL | Base URL for memory recall, device registration, and position uploads |
-| API key | Sent as `x-api-key` on every request; must carry the `memory` scope |
-
-The same values can still be overridden from the Pebble app JavaScript console:
-
-```js
-localStorage.setItem('ci_host',   'https://192.168.1.100:8443');
-localStorage.setItem('ci_api_key', '<your-api-key>');
-```
-
-### 4 – Build and install
+**2. Build the watch app.** In [CloudPebble](https://cloudpebble.repebble.com/), import this repository
+and press Compile. Or locally:
 
 ```bash
-pebble build
-# Install on emulator for quick testing
-pebble install --emulator basalt --logs
-
-# Install on a real device (watch must be paired via Bluetooth)
-pebble install --phone <PHONE_IP> --logs
+uv tool install pebble-tool
+pebble sdk install latest
+npm run build
 ```
 
-If you're building in [CloudPebble](https://cloudpebble.repebble.com/)
-instead of the local `pebble` CLI, the equivalent is the **Compile** tab,
-then **Install** (real watch, needs the CloudPebble companion app on your
-phone) or **Run in emulator**.
+**3. Install it.** Send the build to your watch from CloudPebble, or try it in the emulator first:
+`pebble install --emulator basalt`.
 
----
+**4. Connect your Memory.** In the Pebble phone app, open Companion Memory settings, enter your Memory
+URL and the key, and save. The app checks the connection and lists what works.
 
-## Publishing to the appstore
+### What each feature needs from the key
 
-The original Pebble appstore is gone; the community-run continuation is
-[Rebble](https://rebble.io), and its submission surface is the
-[Developer Portal](https://dev-portal.rebble.io/). Here's the real path,
-not a guess at one:
+Companion Memory denies a scope-limited key on any route that does not name its scope
+([`apiKeyScopeEnforcement.ts`](https://github.com/companionintelligence/CI-Server)). That is a good default, and it
+decides what a key can do today:
 
-1. **Get a clean build for every target platform.** `pebble build` (or
-   CloudPebble's Compile tab) produces one `.pbw` that bundles all
-   platforms declared in `appinfo.json`'s `targetPlatforms`
-   (`aplite, basalt, chalk, diorite, emery`). Fix build errors before
-   anything else — see Troubleshooting below for one that's already been
-   hit and fixed in this repo.
-2. **Set the app's launcher icon.** This app doesn't ship one in
-   `appinfo.json`'s `resources.media` yet. Use
-   [`assets/appstore/icon/icon-48.png`](assets/appstore/icon/icon-48.png)
-   (or re-export [`icon-source.svg`](assets/appstore/icon/icon-source.svg)
-   at another size) and upload it through CloudPebble's project
-   **Settings** tab, which has a dedicated icon field and writes the
-   correct `resources.media` entry for you — hand-editing that JSON risks
-   the same kind of never-actually-compiled mistake the dictation status
-   bug was (see the audit doc).
-3. **Screenshots** — [`assets/appstore/screenshots/`](assets/appstore/screenshots/)
-   already has a full set per platform (see [Screenshots](#screenshots)
-   above); swap in real emulator captures first if you want those instead.
-4. **Create the app listing** on the
-   [Developer Portal](https://dev-portal.rebble.io/): name, description,
-   category, the large ([`icon-144.png`](assets/appstore/icon/icon-144.png))
-   and small ([`icon-48.png`](assets/appstore/icon/icon-48.png)) store
-   icons, and your screenshots. **All the actual copy — description,
-   category recommendation, hardware compatibility, privacy notes — is
-   pre-written in [`docs/appstore-listing.md`](docs/appstore-listing.md),**
-   field-mapped to what the portal asks for; it's meant to be copy-pasted,
-   not re-derived.
-5. **Upload the `.pbw`** as a release on that listing and submit for
-   review, per Rebble's
-   [publishing-an-app guide](https://developer.rebble.io/guides/appstore-publishing/publishing-an-app/).
+| Feature | Key it needs |
+|---|---|
+| Recall, Ask | scope `memory` |
+| Register this watch as a device | unrestricted key (device routes name no scope yet) |
+| Location sync | unrestricted key (position routes name no scope yet) |
+| Recorder (next) | scope `memory` with write capability |
+| Planner (next) | scope `intents` |
 
-None of this can be done from a repo push — it's a Developer Portal
-web flow with your own Rebble account, by design (nobody but you should
-be able to publish under your account).
+The settings page says which of these your key can do, so nothing fails quietly.
 
----
+## Privacy
 
-## AppMessage keys
+- Requests go from your phone straight to the Memory URL you enter. No relay, no account, no analytics.
+- The API key stays on your phone. The settings page is a local page, so the key never reaches a web server.
+- Location sync is off until you switch it on, and it only ever goes to your Memory.
+- **Speaking a question uses Pebble Dictation, which is a cloud speech service.** The audio goes to the
+  speech service your Pebble platform uses, not to this app and not to your Memory. Picking a
+  predefined question sends no audio anywhere.
 
-Defined in `appinfo.json` → `"appKeys"` and mirrored in both `main.c` and
-`pebble-js-app.js`:
+## Development
 
-| Key | Value | Direction | Description |
-|---|---|---|---|
-| `KEY_COMMAND` | 0 | Watch → Phone | Numeric command code |
-| `KEY_QUERY` | 1 | Watch → Phone | Optional text payload (question) |
-| `KEY_RESULT` | 2 | Phone → Watch | Result string (max 252 chars) |
-| `KEY_ERROR` | 3 | Phone → Watch | Error description |
-| `KEY_STATUS` | 4 | Phone → Watch | Transient status text |
+```bash
+npm test                 # 17 tests: the real companion running against a fake Pebble, XHR and storage
+npm run build            # compile for every platform with the current SDK, into build/
+npm run shots            # boot each emulator and capture real screenshots
+npm run brand:check      # fail if a brand-derived file has drifted from the pinned canon
+```
 
-Command codes sent via `KEY_COMMAND`:
+| Path | What lives there |
+|---|---|
+| `src/c/main.c` | Watch app: menus, dictation, answer window. Colours come from the generated `brand.h`. |
+| `src/js/pebble-js-app.js` | Phone companion: CI-Server calls, connection check, settings page. |
+| `appinfo.json`, `resources/` | Manifest (classic layout, so CloudPebble sync works) and the launcher icon. |
+| `vendor/brand/` | The pinned, hash-checked subset of the CI-Common brand bundle. See `.brand-source`. |
+| `scripts/sync-brand.mjs` | Writes every brand-derived file from `vendor/brand`. Nothing it writes is hand-edited. |
+| `site-src/`, `site/` | Template and output for [pebble.ci.computer](https://pebble.ci.computer). |
+| `assets/appstore/` | Store icons and real emulator screenshots. |
+| `docs/` | [Roadmap](docs/ROADMAP.md), [connection audit](docs/CI-Integration-Audit.md), [store listing](docs/appstore-listing.md). |
 
-| Code | Name | Payload |
-|---|---|---|
-| 1 | `CMD_FETCH_EVENTS` | none |
-| 2 | `CMD_ASK_AGENT` | Question string in `KEY_QUERY` |
+**Brand.** Colors, type, logos and product copy come from [CI-Common](https://github.com/companionintelligence/CI-Common),
+pinned to `@companionintelligence/tokens@1.0.0`. Change the pin with `scripts/vendor-brand.sh`, then run
+`npm run brand:sync`. The design gate is `ci-lint-canon`; it currently passes with five non-blocking
+warnings, all from the generated brand block in the companion.
 
----
-
-## Security & Privacy
-
-* All data stays on your own hardware (CI-Server is self-hosted).
-* Use **HTTPS** for phone → CI-Server calls (required on iOS).
-* The API key is stored in phone `localStorage`, sent only as the
-  `x-api-key` header on requests to the CI-Server URL you configured —
-  never anywhere else.
-* Passive location samples are obtained from the paired phone only when the
-  Pebble companion is active and are uploaded to your own CI-Server.
-* This app never talks to Ollama or CI-Hub directly — see Architecture above.
-
----
+**Builds.** The repository keeps the classic `appinfo.json` layout because CloudPebble's GitHub sync reads it.
+`scripts/build-modern.sh` adapts it to the current SDK on the fly, with the SDK's own `-Werror` flags.
 
 ## Troubleshooting
 
-| Symptom | Fix |
+| You see | Do this |
 |---|---|
-| Build fails: `'DictationSessionStatusFailureTranscription' undeclared` | Fixed in this repo — the SDK's real enum value is `DictationSessionStatusFailureTranscriptionRejected` (`main.c`'s dictation callback). If you see this, pull latest; if you're diffing against an older copy, rename the identifier. |
-| AppMessage NACK / outbox full | Only one message can be in-flight at a time. Wait for the previous send to complete before sending another. |
-| Watch shows nothing after selecting a menu item | Check phone logs (`pebble logs`) for XHR errors. Confirm CI-Server URL and API key are correct. |
-| "Parse error" on watch | Log `xhr.responseText` on the phone. The server may be returning HTML (error page) instead of JSON — usually a wrong CI-Server URL. |
-| "Check API key/scope" on watch | The API key is missing, wrong, or lacks the `memory` scope. Recreate it on CI-Server under Settings → API Keys. |
-| "Nothing relevant found in memory." | CI-Server's recall returned zero results for that query — not an error. Try a broader question. |
-| iOS network calls fail | Ensure the CI-Server URL uses HTTPS. iOS only allows HTTPS or whitelisted domains. |
-| Dictation is missing from the Ask AI menu | Pebble Dictation requires a microphone-equipped watch (Basalt/Chalk/Diorite/Emery). Aplite continues to show predefined questions only. |
-| Passive location logs never appear on CI-Server | Confirm the phone granted location permission to the Pebble app; denied permission means the upload is skipped rather than sent empty. |
-| "No cached result" on watch | The watch cache is populated only after the first successful fetch. Connect the phone and run "Recall Memory" first. |
+| "Key rejected. Paste it again in settings." | The key is missing, mistyped or revoked. Create a new one and paste it whole. |
+| "Key can't do that. Give it the memory scope." | Recreate the key with the `memory` scope. |
+| "Can't reach your Memory." | Check the URL. On iOS it must be HTTPS. |
+| "Nothing found. Try a broader question." | Your Memory had no match. Not an error. |
+| Settings say registration or location "needs an unrestricted key" | Expected with a scoped key. Recall and Ask still work. |
+| No Speak row | Your watch has no microphone (original Pebble). Pick a predefined question. |
+| Watch says "Phone unreachable" | Open the Pebble phone app and check the Bluetooth link. |
+
+## Credits and license
+
+Built on [Rebble](https://rebble.io) and the Pebble SDK. Brand, fonts and logos from CI-Common; Manrope and
+JetBrains Mono are OFL licensed (`site/assets/brand/LICENSE-*.txt`). See [`CREDITS.md`](CREDITS.md),
+[`NOTICE.md`](NOTICE.md) and [`LICENSE.md`](LICENSE.md). &copy; Lifescope Inc.

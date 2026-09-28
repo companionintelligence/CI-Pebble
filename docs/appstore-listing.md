@@ -1,119 +1,81 @@
-# Rebble appstore listing — copy, metadata, and assets
+# Rebble store listing
 
-Everything below is ready to paste into the
-[Rebble Developer Portal](https://dev-portal.rebble.io/) watchapp listing
-form. Field names match what the portal actually asks for (confirmed
-against Rebble's [publishing-an-app guide](https://developer.rebble.io/guides/appstore-publishing/publishing-an-app/)) — the *contents* of each field are proposed copy for you to
-review and edit, not something pulled from an existing listing.
+Paste-ready copy for the [Rebble Developer Portal](https://dev-portal.rebble.io/) watchapp form. Field
+names follow Rebble's [publishing guide](https://developer.rebble.io/guides/appstore-publishing/publishing-an-app/).
+The words are proposed copy for you to review. Voice follows the CI-Common brand canon.
 
 ## Assets
 
-| Field | File(s) |
+| Field | File |
 |---|---|
-| Small icon | [`assets/appstore/icon/icon-48.png`](../assets/appstore/icon/icon-48.png) (or `icon-96.png`) |
+| Small icon | [`assets/appstore/icon/icon-48.png`](../assets/appstore/icon/icon-48.png) or `icon-96.png` |
 | Large icon | [`assets/appstore/icon/icon-144.png`](../assets/appstore/icon/icon-144.png) |
-| Source master (re-export at any size) | [`assets/appstore/icon/icon-source.svg`](../assets/appstore/icon/icon-source.svg) |
-| Aplite (B&W) menu icon, if asked separately | [`assets/appstore/icon/icon-mono-48.png`](../assets/appstore/icon/icon-mono-48.png) |
-| Screenshots — Aplite | `assets/appstore/screenshots/aplite-0{1,2,3}-*.png` |
-| Screenshots — Basalt *(reuse for Diorite — identical 144×168 color panel)* | `assets/appstore/screenshots/basalt-0{1,2,3}-*.png` |
-| Screenshots — Chalk (round) | `assets/appstore/screenshots/chalk-0{1,2,3}-*.png` |
-| Screenshots — Emery | `assets/appstore/screenshots/emery-0{1,2,3}-*.png` |
+| Light variant, 512 px master | `icon-light-512.png`, `icon-512.png` |
+| Black and white icon (Aplite) | `icon-mono-48.png`, `icon-mono-96.png` |
+| Screenshots, per platform | `assets/appstore/screenshots/<platform>-0{1,2,3,4}-*.png` |
 
-**These screenshots are accurate UI mockups built directly from `main.c`'s
-actual menu strings and layout (row text, row height, status bar text) —
-not real emulator captures.** This session has no Pebble SDK/emulator to
-produce real ones. They're faithful enough to submit as-is, but if you
-want pixel-perfect device captures instead, see the
-[Screenshots section of the README](../README.md#screenshots) for the
-CloudPebble emulator steps — same file names will just work as drop-in
-replacements.
-
-The icon is original artwork made for this listing (a recall/radar pulse
-inside a watch face, in the site's accent blue `#0055ff`) — not
-reused from anywhere else, so there's nothing to attribute.
+The icons are built from the CI-Common brand bundle by `scripts/render-icons.mjs`. The screenshots are real
+captures of the running app on the Pebble emulator, made by `scripts/emulator-shots.sh` (main menu, Ask list,
+an answer, an error). Diorite shares Basalt's panel size but has its own set. Nothing is drawn by hand.
 
 ## Listing copy
 
 **Title**
 ```
-CI Digital Memory
+Companion Memory
 ```
-(Matches `appinfo.json`'s `longName`. `shortName` — used for the watch's
-app list — is already set to "CI Memory".)
 
 **Source code URL**
 ```
 https://github.com/companionintelligence/CI-Pebble
 ```
 
-**Support email** — use whatever address you want support requests sent
-to; not something this doc can fill in for you.
+**Category.** Pick Tools & Utilities if the portal offers it. The portal's own list is the source of truth.
 
-**Category** — the portal's own dropdown is the source of truth (this
-repo can't see its current option list). The closest fit is whichever of
-**Tools & Utilities** or **Health & Fitness** the portal actually offers —
-pick Tools & Utilities if in doubt; this app is a data client, not a
-fitness tracker.
+**Platforms.** All five: Aplite, Basalt, Chalk, Diorite, Emery.
 
-**Hardware platform compatibility** — check all five: Aplite, Basalt,
-Chalk, Diorite, Emery (matches `appinfo.json`'s `targetPlatforms`).
-
-**Short description / teaser** (if the form has a separate short field):
+**Teaser**
 ```
-Recall your CI Digital Memory and ask it questions, right from your wrist.
+Your AI remembers, because it's yours. Recall and ask your Memory from your wrist.
 ```
 
-**Full description** (Rebble's guide caps this at 1600 characters — this
-is 1,422):
+**Description** (under the 1600 character limit)
 ```
-Companion Pebble puts your self-hosted CI Digital Memory server on your
-wrist. Two things, done well:
+Companion Memory puts the Memory you host on your wrist.
 
-• Recall Memory — one tap shows a summary of what's going on in your
-  memory right now.
-• Ask AI — pick a question, or dictate your own on microphone-equipped
-  watches, and see what your memory has on it.
+Recall: the latest from your Memory in one press.
+Ask: pick a question, or speak your own on watches with a microphone. Your Memory searches what you saved and returns the lines that match. The answer buzzes your wrist.
+Last answer: your most recent answer stays on the watch, so it is there offline.
+Connection check: after you save settings, your phone tells you what works.
 
-Everything comes from a semantic search over your own CI-Server appliance
-— nothing is generated by a chatbot, and nothing leaves your own
-infrastructure. The watch talks to a small companion app on your phone,
-which makes one authenticated HTTPS call to the CI-Server URL you
-configure. That's the entire network path: this app never talks to Ollama,
-never talks to any other Companion Intelligence service, and has no
-third-party analytics.
+How it works: the watch talks to your phone. Your phone makes one authenticated HTTPS call to the Memory URL you enter. It does not use a relay or an account, and it has no analytics.
 
-Setup takes two steps: create an API key on your CI-Server (Settings →
-API Keys, with the "memory" scope), then enter your server's URL and that
-key in this app's Pebble phone settings. Passive location sync runs
-automatically every 15 minutes and uploads a GPS sample to your own
-server — it's silently skipped whenever the phone hasn't granted location
-permission, never sent anywhere but your own CI-Server.
+Set up in four steps:
+1. In Companion Memory, create an API key with the memory scope.
+2. Install this app.
+3. Open its settings in the Pebble phone app.
+4. Enter your Memory URL and the key, and save.
 
-Requires a running CI-Server appliance: https://github.com/companionintelligence/CI-Server
+Optional location sync sends one location sample every 15 minutes to your Memory. It is off until you turn it on. Registering the watch and location sync need an unrestricted key. Recall and Ask work with a memory-scoped key.
 
-Full source, the exact API calls this app makes, and a from-scratch audit
-of why they're built the way they are:
-https://github.com/companionintelligence/CI-Pebble
+Speaking a question uses Pebble Dictation, which is a cloud speech service. The audio goes to the speech service your Pebble platform uses, not to this app and not to your Memory. Picking a listed question sends no audio anywhere.
+
+Needs a running Companion Memory: https://github.com/companionintelligence/CI-Server
+Source, exact API calls and roadmap: https://github.com/companionintelligence/CI-Pebble
 ```
 
-**Marketing banner / header images** — optional per Rebble's guide;
-skipped here since they're framed promotional graphics (Photoshop
-templates, not something generated from the app itself) rather than a
-listing requirement. The [appstore-assets guide](https://developer.rebble.io/guides/appstore-publishing/appstore-assets/)
-has blank templates if you want to make one.
+**Banner and header images.** Optional, and not generated here. Rebble's
+[asset templates](https://developer.rebble.io/guides/appstore-publishing/appstore-assets/) apply.
 
-## Privacy / permissions note (for the listing's privacy section, if asked)
+## Privacy and permissions
 
-- **Location** (`appinfo.json` capability): used only for the optional
-  passive sync to your own CI-Server; never sent anywhere else; the
-  upload is skipped entirely if permission is denied.
-- **Configurable**: the phone app's settings screen for CI-Server URL and
-  API key.
-- No health data, no contacts, no other capabilities are requested.
+- **Location.** Used only for the optional sync to your own Memory. Off by default. Skipped when permission is denied.
+- **Configuration.** Memory URL and API key, stored on your phone.
+- **Speech.** Pebble Dictation is a cloud service. See the description above.
+- No health data, no contacts, no other capabilities.
 
-## Release notes for this build
+## Release notes
 
 ```
-1.0 — Initial release: Recall Memory, Ask AI, Last Result, passive
-location sync, and CI-Server device registration.
+1.0: Recall, Ask, Last answer, a connection check in settings, optional location sync.
 ```

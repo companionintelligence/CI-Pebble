@@ -1,0 +1,10 @@
+bundle:      ci-brand-1.0.0 (@companionintelligence/tokens@1.0.0)
+release:     https://github.com/companionintelligence/CI-Common/releases/tag/%40companionintelligence%2Ftokens%401.0.0
+release sha: sha256:c790625501285c5fe0395f581d2bb235ba788ae394c7e4ccf791fa4d19033aa9 (ci-brand-1.0.0.tar.gz, as reported by GitHub)
+source:      CI-Common commit 5fa20231141c14e951112cec1bfe6b96dd86044e
+how built:   the release asset needs an authenticated download, so this subset was assembled from the tagged
+             source with the same steps as scripts/build-brand-bundle.mjs (gen-targets for tokens/, copy of
+             assets/logos, styles/fonts/files, content/tokens/copy.json). Per-file hashes are in SHA256SUMS.
+verify:      scripts/vendor-brand.sh 1.0.0 downloads the real asset (needs `gh` access to CI-Common), checks the
+             tarball digest above, and rewrites this directory. `git diff` should then be empty.
+subset:      tokens.css/json, six logos + app-icon-source.png, Manrope + JetBrains Mono woff2 with licences, copy.json

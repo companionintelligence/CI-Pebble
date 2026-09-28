@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Companion tests
+        run: npm test
+      - name: Brand files match the pinned canon
+        run: npm run brand:check
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install the Pebble SDK
+        run: |
+          uv tool install pebble-tool
+          pebble sdk install latest
+      - name: Build for every platform
+        run: npm run build

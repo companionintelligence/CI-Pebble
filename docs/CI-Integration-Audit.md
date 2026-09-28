@@ -76,10 +76,13 @@ Request body (`recallSchema`, `domains/agent/types.ts:9-12`):
 { "query": "string, 1-2000 chars", "maxResults": "integer 1-20, optional" }
 ```
 
-Response: `{ "block": "markdown string", "resultCount": number }` — a
-hybrid keyword/semantic search over the user's knowledge graph, hydrated
-into readable text. **Both** `Recall Memory` and `Ask AI` now call this,
-with a fixed prompt for the former and the user's question for the latter.
+Response: `{ "block": string, "resultCount": number }`. **The block is written for an LLM prompt,
+not for a person** (corrected 2026-09-28, see "Corrections" below). It is a heading, a long guard
+sentence saying the text below is data and not instructions, then the memory lines between
+`<<<UNTRUSTED_CONTENT` and `UNTRUSTED_CONTENT>>>` (`common/prompt/untrustedBlock.ts`), one clip per
+line (`domains/agent/services/SerializerService.ts`). The companion extracts those lines, drops the
+guard, shortens dates and fits 252 characters. **Both** `Recall` and `Ask` call this, with a fixed
+prompt for the former and the user's question for the latter.
 
 This is a plain JSON request/response — no streaming — which is exactly
 why it's usable from PebbleKit JS's `XMLHttpRequest`. CI-Server's own
@@ -101,7 +104,8 @@ fake from this side.
 ### `POST /api/devices`, `PATCH /api/devices/:id/last-seen`
 
 `backend/apps/api/src/domains/devices/controllers/DeviceController.ts`.
-Guard: `JwtOrApiKeyAuthGuard`, no scope requirement. `device_type` accepts
+Guard: `JwtOrApiKeyAuthGuard`, and **no `@RequireScopes`**, which means a scope-limited key is denied with a 403
+(`common/guards/apiKeyScopeEnforcement.ts:104-120`); only an unrestricted key gets through. `device_type` accepts
 `'smartwatch'` as a first-class enum value
 (`domains/devices/types.ts:9-19`) — this app registers itself as one, once,
 and caches the server-assigned `device_id` (`uuid7()`-generated server-side,
@@ -112,7 +116,7 @@ position uploads, since `device_id` is optional everywhere it's used.
 ### `POST /api/position`
 
 `backend/apps/api/src/domains/position/controllers/PositionController.ts:40-60`.
-Guard: `JwtOrApiKeyAuthGuard`, no scope requirement. Body is an array of
+Guard: `JwtOrApiKeyAuthGuard`, and **no `@RequireScopes`**, so again only an unrestricted key gets through. Body is an array of
 (`createPositionSchemaRoot`, `domains/position/types.ts:26-41`):
 
 ```json
@@ -186,10 +190,33 @@ watch-side trigger).
   need to expose a plain-JSON completion route, since its existing one is
   an internal streaming protocol for its own UI.
 
-## 7. Deploy target — `pebble.ci.computer`
+## Corrections to the first version of this audit
 
-A static Cloudflare Pages site now lives under `site/` for the public
-`pebble.ci.computer` landing/setup page. See `site/README.md` for what it
-is, and why the actual Cloudflare account/DNS wiring is outside what this
-session could do (no Cloudflare credentials in this environment) — it's
-scaffolded and ready to deploy, not deployed.
+Two statements in the first pass were wrong. Both were found by reading more of the server, and both
+are fixed in code and docs.
+
+1. **"No scope requirement" meant "works with any key". It means the opposite for a scoped key.**
+   The server denies a scope-limited key on every route that does not declare its scope. The first
+   docs told people to create a key with only the `memory` scope, which silently blocked device
+   registration and location upload (the failures were swallowed as best effort). Now the companion
+   stops after one 403, records it, and the settings page says "needs an unrestricted key"
+   instead of failing every 15 minutes. Ask 1 in the [roadmap](ROADMAP.md) is to give those routes
+   a scope.
+2. **The recall block was shown raw.** It starts with about 330 characters of prompt guard, and the
+   watch shows 252, so the first version would have displayed almost nothing but boilerplate. The
+   companion now extracts the memory lines; there are tests built from the server's exact wrapper.
+3. **Privacy claims overreached.** "Nothing leaves except to your Memory" was untrue for the Speak
+   feature: Pebble Dictation is a cloud speech service. The app itself only contacts your Memory;
+   the README, site and store listing now say what dictation does.
+
+## 7. Deploy target: `pebble.ci.computer`
+
+The static site under `site/` is deployed to Cloudflare Pages (project `ci-pebble`, live at
+`ci-pebble.pages.dev`) and attached to `pebble.ci.computer`. Since the site now carries the brand, it
+follows the canon: `site-src/index.template.html` is rendered by `scripts/sync-brand.mjs` from the
+pinned CI-Common bundle in `vendor/brand/`. See `site/README.md` for deployment.
+
+## 8. What comes next
+
+The recorder, the planner, reminders and a Companion Hub bridge, with the exact routes, keys and
+the CI-Server and CI-Hub changes each one needs, are in [ROADMAP.md](ROADMAP.md).
