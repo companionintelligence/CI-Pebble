@@ -1,0 +1,32 @@
+name: Deploy pebble.ci.computer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "wrangler.toml"
+      - ".github/workflows/deploy-pebble-site.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Requires two repo secrets that are NOT set by this workflow file:
+      #   CLOUDFLARE_API_TOKEN   — a token scoped to Cloudflare Pages:Edit
+      #   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account that owns the
+      #                            ci-pebble Pages project and the
+      #                            ci.computer zone
+      # See site/README.md for how to create both and wire up the
+      # pebble.ci.computer custom domain.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=ci-pebble

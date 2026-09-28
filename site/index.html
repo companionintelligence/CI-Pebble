@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companion Pebble</title>
+<meta name="description" content="A Pebble smartwatch interface for your self-hosted Companion Intelligence Digital Memory server.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1a1d23;
+    --text-muted: #565d6b;
+    --border: #e2e5ea;
+    --accent: #0055ff;
+    --accent-text: #ffffff;
+    --code-bg: #f0f1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --surface: #171a21;
+      --text: #eceef2;
+      --text-muted: #9aa1ad;
+      --border: #2a2e37;
+      --accent: #5b8cff;
+      --accent-text: #0f1115;
+      --code-bg: #1d212a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --text: #eceef2;
+    --text-muted: #9aa1ad;
+    --border: #2a2e37;
+    --accent: #5b8cff;
+    --accent-text: #0f1115;
+    --code-bg: #1d212a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 16px 80px;
+  }
+  header.hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  header.hero .badge {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: clamp(28px, 6vw, 40px);
+    margin: 0 0 12px;
+  }
+  header.hero p {
+    color: var(--text-muted);
+    font-size: 17px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-text); }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+
+  section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  section h2 {
+    font-size: 20px;
+    margin-top: 0;
+  }
+  .diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    margin: 20px 0;
+  }
+  .diagram .node {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 120px;
+  }
+  .diagram .node small { display: block; color: var(--text-muted); margin-top: 2px; }
+  .diagram .arrow { color: var(--text-muted); font-size: 20px; }
+
+  ol.steps { padding-left: 20px; }
+  ol.steps li { margin-bottom: 14px; }
+  code, pre {
+    background: var(--code-bg);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  code { padding: 2px 6px; }
+  pre {
+    padding: 14px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+  }
+  pre code { padding: 0; background: none; }
+
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li {
+    padding-left: 26px;
+    position: relative;
+    margin-bottom: 10px;
+    color: var(--text-muted);
+  }
+  ul.checks li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 40px;
+  }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <span class="badge">Companion Pebble</span>
+      <h1>Your Digital Memory, on your wrist</h1>
+      <p>
+        A Pebble smartwatch app that talks to your own self-hosted
+        Companion Intelligence (CI) Digital Memory server — nothing else.
+      </p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://github.com/companionintelligence/CI-Pebble">Get the app</a>
+        <a class="btn secondary" href="#setup">Setup guide</a>
+      </div>
+    </header>
+
+    <section>
+      <h2>How it connects</h2>
+      <p>
+        The watch never talks to the network directly. It sends a small
+        request over Bluetooth to a companion app on your phone, which
+        makes one authenticated call to your CI-Server appliance and
+        relays the answer back.
+      </p>
+      <div class="diagram">
+        <div class="node">Pebble Watch<small>Bluetooth</small></div>
+        <div class="arrow">&#8596;</div>
+        <div class="node">Phone Companion<small>PebbleKit JS</small></div>
+        <div class="arrow">&#8596;</div>
+        <div class="node">Your CI-Server<small>self-hosted</small></div>
+      </div>
+      <p>
+        That's the whole path. The app never reaches Ollama or CI-Hub
+        directly — those are CI-Server's own concern, reached (if at all)
+        through CI-Server itself.
+      </p>
+    </section>
+
+    <section id="setup">
+      <h2>Setup</h2>
+      <ol class="steps">
+        <li>
+          Install the Pebble SDK and confirm it works:
+          <pre><code>pebble sdk install latest
+pebble --version</code></pre>
+        </li>
+        <li>
+          On your CI-Server appliance, create an API key under
+          <strong>Settings &rarr; API Keys</strong> with the
+          <strong>memory</strong> scope enabled.
+        </li>
+        <li>
+          Build and install the watch app:
+          <pre><code>pebble build
+pebble install --phone &lt;PHONE_IP&gt; --logs</code></pre>
+        </li>
+        <li>
+          On the Pebble phone app, open <strong>CI Memory</strong>'s
+          settings and enter your CI-Server URL and the API key from
+          step 2.
+        </li>
+      </ol>
+      <p>
+        Full setup, troubleshooting, and the underlying API contract live
+        in the
+        <a href="https://github.com/companionintelligence/CI-Pebble/blob/main/README.md">project README</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Privacy</h2>
+      <ul class="checks">
+        <li>Your memory data stays on hardware you own and control.</li>
+        <li>Phone &rarr; CI-Server calls are HTTPS, authenticated with an API key scoped to what this app needs.</li>
+        <li>Passive location samples are only sent when your phone grants permission, and only to your own CI-Server.</li>
+        <li>This app has no third-party analytics and no connection to any service other than the CI-Server you configure.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>
+        Companion Pebble is part of the
+        <a href="https://ci.computer">Companion Intelligence</a> platform.
+        &copy; Lifescope Inc.
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

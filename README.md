@@ -2,37 +2,62 @@
 
 Companion Pebble smartwatch app that acts as a wearable interface for the
 [Companion Intelligence (CI) Digital Memory server](https://github.com/companionintelligence/CI-Server)
-and the [Ollama](https://ollama.com) local LLM runtime.
+(CI-Server).
+
+> **Looking for the connection audit?** See
+> [`docs/CI-Integration-Audit.md`](docs/CI-Integration-Audit.md) for a
+> ground-truth comparison of what this app calls against CI-Server's real
+> API, and what changed.
 
 ---
 
 ## Architecture
 
 ```
-Pebble Watch  ←→  Phone Companion (PebbleKit JS)  ←→  CI-Server  ←→  Ollama LLM
-    (C)                  (JavaScript)                   (REST)         (HTTP API)
+Pebble Watch  <->  Phone Companion (PebbleKit JS)  <->  CI-Server
+    (C)                  (JavaScript)                     (REST)
 ```
 
-All heavy processing happens off the watch.  The watch UI sends small
-AppMessage packets over Bluetooth to the phone companion, which makes HTTPS
-calls to the CI-Server REST API and/or HTTP calls to the Ollama `/api/chat`
-endpoint, then relays results back to the watch.
+All heavy processing happens off the watch. The watch UI sends small
+AppMessage packets over Bluetooth to the phone companion, which makes a
+single authenticated HTTPS call to CI-Server, then relays the result back
+to the watch.
+
+**CI-Server is the only service this app talks to.** Two things it
+deliberately never does, both covered in the audit doc:
+
+- **It never calls Ollama directly.** Ollama is CI-Server's own internal LLM
+  backend (or an OpenAI-compatible endpoint CI-Server is configured to use
+  instead) — CI-Server owns model selection, tool-calling, and conversation
+  state. A watch companion has no business holding a second, unauthenticated
+  connection straight into that backend.
+- **It never calls CI-Hub.** CI-Hub is the appliance's local app runtime for
+  installed marketplace apps; CI-Server-to-Hub traffic is internal,
+  signed service-to-service messaging (used e.g. to wake an installed
+  agent app), not a surface external device clients are meant to reach.
 
 ### Data-flow sequence
 
 ```
-Watch          Phone             CI-Server          Ollama
-  |                |                  |                 |
-  |--CMD_FETCH---->|                  |                 |
-  |                |--GET /api/events>|                 |
-  |                |<----JSON events--|                 |
-  |<--KEY_RESULT---|                  |                 |
-  |                |                  |                 |
-  |--CMD_ASK_AGENT>|                  |                 |
-  |                |--POST /api/chat------------------>|
-  |                |<-----------JSON answer------------|
-  |<--KEY_RESULT---|                  |                 |
+Watch          Phone                    CI-Server
+  |              |                          |
+  |--CMD_FETCH-->|                          |
+  |              |--POST /api/memory/recall>|
+  |              |<------{block, count}-----|
+  |<--KEY_RESULT-|                          |
+  |              |                          |
+  |--CMD_ASK_AGENT>                         |
+  |              |--POST /api/memory/recall>|
+  |              |<------{block, count}-----|
+  |<--KEY_RESULT-|                          |
 ```
+
+`Recall Memory` and `Ask AI` are the same CI-Server call
+(`POST /api/memory/recall`) with a different `query` string: a fixed
+"what's going on" prompt for Recall Memory, the user's typed/dictated
+question for Ask AI. Both return a markdown block of **retrieved** memory
+content — a semantic search result, not a generated conversational
+answer. See the audit doc for why.
 
 ---
 
@@ -46,7 +71,10 @@ CI-Pebble/
 │   ├── c/
 │   │   └── main.c        # Watch C app – UI, AppMessage, persistent storage
 │   └── js/
-│       └── pebble-js-app.js  # Phone companion – CI-Server & Ollama calls
+│       └── pebble-js-app.js  # Phone companion – CI-Server calls
+├── site/                 # Static Cloudflare Pages site for pebble.ci.computer
+├── docs/
+│   └── CI-Integration-Audit.md
 └── README.md
 ```
 
@@ -56,14 +84,20 @@ CI-Pebble/
 
 | Feature | Description |
 |---|---|
-| **Recall Memory** | Fetches recent events from CI-Server and shows a summary on the watch |
-| **Ask AI** | Presents predefined questions and, on microphone-equipped watches, a Pebble Dictation option for ad-hoc prompts |
+| **Recall Memory** | Calls `POST /api/memory/recall` with a fixed prompt and shows the returned memory summary on the watch |
+| **Ask AI** | Presents predefined questions and, on microphone-equipped watches, a Pebble Dictation option for ad-hoc questions — each one is sent to `POST /api/memory/recall` as the `query` |
 | **Last Result** | Shows the last response cached in Pebble persistent storage (works offline) |
-| **Configuration page** | Lets you set the CI-Server URL, bearer token, and Ollama URL from the Pebble phone app |
-| **Passive sync** | Periodically posts watch step-count snapshots and phone location samples back to CI-Server |
-| **Server notifications** | Polls CI-Server for new notifications and relays them to the watch through the phone companion |
+| **Configuration page** | Lets you set the CI-Server URL and API key from the Pebble phone app |
+| **Passive sync** | Every 15 minutes, uploads a phone geolocation sample to `POST /api/position` when location permission is available. No step-count/health telemetry is sent — CI-Server has no live ingestion endpoint for it (bulk Apple Health / Google Fit import is a separate, unrelated CI-Server feature) |
+| **Device registration** | Registers itself once as a CI-Server `smartwatch` device (`POST /api/devices`) and heartbeats it (`PATCH /api/devices/:id/last-seen`) so it shows up in the user's device list |
 | **Status bar** | Shows transient status ("Loading…", "Thinking…", "Send failed") at the bottom of the main window |
 | **Error handling** | Network errors, JSON parse failures, and AppMessage drops are all caught and reported gracefully |
+
+**Not currently offered:** server-pushed notifications. CI-Server's
+notification mechanism is Web Push (VAPID), which isn't something a
+PebbleKit JS companion can subscribe to, and there is no pollable REST
+feed to fall back to. See the audit doc's Open Gaps section before
+re-adding this to the feature list.
 
 ---
 
@@ -72,10 +106,13 @@ CI-Pebble/
 | Component | Details |
 |---|---|
 | Pebble SDK | 3.x (any platform: Aplite, Basalt, Chalk, Diorite, Emery) |
-| CI-Server | Running locally; exposes `GET /api/events` returning a JSON array |
-| CI-Server (optional background endpoints) | `POST /api/passive-log` for passive health/location uploads and `GET /api/notifications?since=<ISO8601>` for server-side pushes |
-| Ollama | Running locally on `http://localhost:11434` with `gemma3` model pulled |
+| CI-Server | A running appliance exposing `POST /api/memory/recall`, `POST /api/devices`, and `POST /api/position` (all present on any current CI-Server build) |
+| CI-Server API key | Created on CI-Server under Settings → API Keys with the **`memory`** scope enabled |
 | Phone | Android (recommended) or iOS with HTTPS access to CI-Server |
+
+Ollama and CI-Hub are **not** requirements from this app's point of view —
+they're CI-Server's own concern (CI-Server talks to Ollama internally; it
+has no dependency on CI-Hub at all for anything this app uses).
 
 ---
 
@@ -89,21 +126,20 @@ pebble sdk install latest
 pebble --version
 ```
 
-### 2 – Configure CI-Server and Ollama
+### 2 – Get a CI-Server API key
 
-Start your CI-Server and verify:
-
-```bash
-curl https://ci-server.local/api/events
-```
-
-Start Ollama and pull the model:
+Start (or use your existing) CI-Server appliance, then create an API key
+with the `memory` scope from its Settings → API Keys screen. Verify the
+appliance is reachable and the key works:
 
 ```bash
-ollama pull gemma3
-# Verify:
-curl http://localhost:11434/api/version
+curl -X POST https://ci-server.local/api/memory/recall \
+  -H "x-api-key: <your-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "what happened recently?", "maxResults": 3}'
 ```
+
+A `{"block": "...", "resultCount": N}` response means you're set.
 
 ### 3 – Configure the phone companion
 
@@ -112,22 +148,19 @@ By default the companion uses:
 | Setting | Default |
 |---|---|
 | CI-Server base URL | `https://ci-server.local` |
-| Ollama base URL | `http://localhost:11434` |
 
 Open the Pebble phone app, tap the gear next to **CI Memory**, and save:
 
 | Setting | Purpose |
 |---|---|
-| CI-Server URL | Base URL for memory recall, passive logs, and notification polling |
-| Bearer token | Optional JWT / OAuth bearer token sent as `Authorization: Bearer …` |
-| Ollama URL | Base URL for `/api/chat` |
+| CI-Server URL | Base URL for memory recall, device registration, and position uploads |
+| API key | Sent as `x-api-key` on every request; must carry the `memory` scope |
 
 The same values can still be overridden from the Pebble app JavaScript console:
 
 ```js
-localStorage.setItem('ci_host',      'https://192.168.1.100:8443');
-localStorage.setItem('ollama_url',   'http://192.168.1.100:11434');
-localStorage.setItem('ci_auth_token', '<your-bearer-token>');
+localStorage.setItem('ci_host',   'https://192.168.1.100:8443');
+localStorage.setItem('ci_api_key', '<your-api-key>');
 ```
 
 ### 4 – Build and install
@@ -169,13 +202,12 @@ Command codes sent via `KEY_COMMAND`:
 
 * All data stays on your own hardware (CI-Server is self-hosted).
 * Use **HTTPS** for phone → CI-Server calls (required on iOS).
-* Bearer tokens are stored in phone `localStorage` — do **not** store
-  unencrypted private keys there.
+* The API key is stored in phone `localStorage`, sent only as the
+  `x-api-key` header on requests to the CI-Server URL you configured —
+  never anywhere else.
 * Passive location samples are obtained from the paired phone only when the
   Pebble companion is active and are uploaded to your own CI-Server.
-* Ollama is accessed over plain HTTP on `localhost`; no API key is required
-  for a local-only setup.
-* The watch app never communicates with any third-party service.
+* This app never talks to Ollama or CI-Hub directly — see Architecture above.
 
 ---
 
@@ -184,12 +216,11 @@ Command codes sent via `KEY_COMMAND`:
 | Symptom | Fix |
 |---|---|
 | AppMessage NACK / outbox full | Only one message can be in-flight at a time. Wait for the previous send to complete before sending another. |
-| Watch shows nothing after selecting a menu item | Check phone logs (`pebble logs`) for XHR errors. Confirm CI-Server URL and token are correct. |
-| "Parse error" on watch | Log `xhr.responseText` on the phone. The server may be returning HTML (error page) instead of JSON. |
-| "LLM unavailable" | Ensure Ollama is running: `curl http://localhost:11434/api/version`. |
-| "LLM timed out" | The model may be loading for the first time. Retry or increase `OLLAMA_TIMEOUT` in `pebble-js-app.js`. |
+| Watch shows nothing after selecting a menu item | Check phone logs (`pebble logs`) for XHR errors. Confirm CI-Server URL and API key are correct. |
+| "Parse error" on watch | Log `xhr.responseText` on the phone. The server may be returning HTML (error page) instead of JSON — usually a wrong CI-Server URL. |
+| "Check API key/scope" on watch | The API key is missing, wrong, or lacks the `memory` scope. Recreate it on CI-Server under Settings → API Keys. |
+| "Nothing relevant found in memory." | CI-Server's recall returned zero results for that query — not an error. Try a broader question. |
 | iOS network calls fail | Ensure the CI-Server URL uses HTTPS. iOS only allows HTTPS or whitelisted domains. |
 | Dictation is missing from the Ask AI menu | Pebble Dictation requires a microphone-equipped watch (Basalt/Chalk/Diorite/Emery). Aplite continues to show predefined questions only. |
-| Notifications never arrive | Confirm the CI-Server exposes `GET /api/notifications` and returns a JSON array (or `{ notifications: [...] }`) with `timestamp`, `title`, and `body` fields. |
-| Passive logs are incomplete | The companion posts step counts from the watch and adds phone geolocation when permission is available; denied phone location permission results in health-only uploads. |
+| Passive location logs never appear on CI-Server | Confirm the phone granted location permission to the Pebble app; denied permission means the upload is skipped rather than sent empty. |
 | "No cached result" on watch | The watch cache is populated only after the first successful fetch. Connect the phone and run "Recall Memory" first. |
