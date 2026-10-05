@@ -1,0 +1,22 @@
+{
+  "name": "Companion Memory for Pebble",
+  "short_name": "Memory for Pebble",
+  "description": "Recall and search your Companion Memory from your Pebble. Your AI remembers, because it's yours.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#f3faf7",
+  "theme_color": "#f3faf7",
+  "icons": [
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
