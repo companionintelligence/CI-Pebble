@@ -1,2 +1,5 @@
 # Browsers and crawlers ask for /favicon.ico whatever the page says; answer with the PNG icon, not the 404 page.
 /favicon.ico /assets/icon-48.png 302
+# Older Safari and some crawlers probe the site root for the touch icon even when the page links one.
+/apple-touch-icon.png /assets/apple-touch-icon.png 302
+/apple-touch-icon-precomposed.png /assets/apple-touch-icon.png 302

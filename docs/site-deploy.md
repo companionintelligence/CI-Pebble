@@ -36,6 +36,12 @@ then:
 --repo companionintelligence/CI-Pebble`, run the workflow by hand (Actions, Deploy pebble.ci.computer, Run
 workflow, or `gh workflow run deploy-pebble-site.yml`).
 
+**Deleting a file from `site/` does not delete it from the live domain right away.** The new deployment no longer
+contains the file (`https://ci-pebble.pages.dev/<path>` returns 404), but `pebble.ci.computer` can keep serving a
+copy cached at the Cloudflare edge until it expires. This happened with the old `site/README.md`: it kept
+answering on `pebble.ci.computer/README.md` after the deploy that removed it. Purge it in the dashboard (the
+`ci.computer` zone, Caching, Configuration, Custom Purge, enter the full URL) and check it again with `curl -I`.
+
 ## One-time setup (needs a Cloudflare account owner)
 
 1. Create the Pages project: `npx wrangler pages project create ci-pebble`.
