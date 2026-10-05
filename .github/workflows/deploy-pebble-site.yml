@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "scripts/inject-ga.mjs"
       - "wrangler.toml"
       - ".github/workflows/deploy-pebble-site.yml"
   workflow_dispatch: {}
@@ -16,6 +17,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+
+      # Injects GA4 into every HTML file's <head> at deploy time. No-op unless
+      # the repo variable GA_MEASUREMENT_ID is set to a valid G-XXXX id:
+      #   gh variable set GA_MEASUREMENT_ID --body G-XXXX --repo companionintelligence/CI-Pebble
+      - name: Inject Google Analytics
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+        run: node scripts/inject-ga.mjs site
 
       # Requires two repo secrets that are NOT set by this workflow file:
       #   CLOUDFLARE_API_TOKEN   — a token scoped to Cloudflare Pages:Edit
