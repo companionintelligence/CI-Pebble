@@ -129,6 +129,24 @@ test('404 page links back to ci.computer and to the home page', () => {
   assert.match(notFound, /prefers-color-scheme/, 'follows the system theme like the home page');
 });
 
+test('every user-facing page (home and 404) carries Buy, Download and Docs links, in the same tab', () => {
+  const required = [
+    ['https://ci.computer/core', 'Buy Companion Core'],
+    ['https://ci.computer/download', 'Download Companion'],
+    ['https://docs.ci.computer/docs/apps-available/first-party-apps/pebble-os', 'Docs'],
+  ];
+  for (const [name, html] of [['index.html', home], ['404.html', notFound]]) {
+    const l = anchors(html);
+    for (const [href, text] of required) {
+      const hit = l.filter((a) => a.href === href);
+      assert.ok(hit.length >= 1, `${name} links to ${href}`);
+      assert.ok(hit.some((a) => a.text === text), `${name}: a link to ${href} reads "${text}"`);
+      assert.ok(hit.every((a) => !/target=/.test(a.attrs)), `${name}: ${href} opens in the same tab`);
+    }
+    assert.ok(!l.some((a) => /\/store\/p\/core/.test(a.href || '')), `${name}: use /core exactly as written`);
+  }
+});
+
 test('sitemap and robots agree with the canonical URL', () => {
   const sitemap = read('sitemap.xml');
   assert.match(sitemap, /<loc>https:\/\/pebble\.ci\.computer\/<\/loc>/);
