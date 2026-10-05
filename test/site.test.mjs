@@ -156,6 +156,15 @@ test('_headers: a CSP that still lets Google Analytics and Cloudflare analytics 
   assert.match(headers, /Permissions-Policy: /);
 });
 
+test('_redirects: legacy root icon paths land on real files, not the 404 page', () => {
+  const rules = read('_redirects').split('\n').filter((l) => l.trim() && !l.startsWith('#')).map((l) => l.trim().split(/\s+/));
+  const target = (from) => (rules.find((r) => r[0] === from) || [])[1];
+  assert.equal(target('/favicon.ico'), '/assets/icon-48.png');
+  assert.equal(target('/apple-touch-icon.png'), '/assets/apple-touch-icon.png');
+  assert.equal(target('/apple-touch-icon-precomposed.png'), '/assets/apple-touch-icon.png');
+  for (const [, to] of rules) assert.ok(existsSync(join(SITE, to.slice(1))), to);
+});
+
 test('deploy notes are not published with the site', () => {
   assert.ok(!existsSync(join(SITE, 'README.md')));
   assert.ok(existsSync(join(ROOT, 'docs/site-deploy.md')));
