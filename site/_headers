@@ -1,9 +1,12 @@
 # Cloudflare Pages response headers for every path (including 404.html).
 # The page needs 'unsafe-inline' for its theme script, its <style>, the SVG style attributes and the
 # deploy-time Google Analytics snippet (whose body changes with the measurement ID). Everything else is
-# same-origin, plus the Google Analytics and Cloudflare Web Analytics hosts that must keep working.
+# same-origin, plus the Google Analytics and Cloudflare Web Analytics hosts that must keep working. The
+# production GA4 stream beacons to analytics.google.com (the bare host, which *.analytics.google.com does not
+# match), stats.g.doubleclick.net and www.google.com as well as *.google-analytics.com; blocking them drops
+# part of the data without any visible error on the page.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://cloudflareinsights.com; img-src 'self' https://*.google-analytics.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; connect-src 'self' https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com; img-src 'self' https://*.google-analytics.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

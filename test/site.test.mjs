@@ -143,6 +143,11 @@ test('_headers: a CSP that still lets Google Analytics and Cloudflare analytics 
   for (const needle of ['https://www.googletagmanager.com', 'https://*.google-analytics.com', 'https://static.cloudflareinsights.com', 'https://cloudflareinsights.com']) {
     assert.ok(csp.includes(needle), needle);
   }
+  // Hosts the production GA4 stream really beacons to (seen as CSP errors in the live console).
+  const connect = csp.match(/connect-src ([^;]+)/)[1].split(' ');
+  for (const host of ['https://analytics.google.com', 'https://stats.g.doubleclick.net', 'https://www.google.com']) {
+    assert.ok(connect.includes(host), `connect-src allows ${host}`);
+  }
   assert.match(csp, /default-src 'self'/);
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /object-src 'none'/);
