@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pebble.ci.computer/sitemap.xml
