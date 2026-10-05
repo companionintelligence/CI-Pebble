@@ -1,0 +1,10 @@
+# Cloudflare Pages response headers for every path (including 404.html).
+# The page needs 'unsafe-inline' for its theme script, its <style>, the SVG style attributes and the
+# deploy-time Google Analytics snippet (whose body changes with the measurement ID). Everything else is
+# same-origin, plus the Google Analytics and Cloudflare Web Analytics hosts that must keep working.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://cloudflareinsights.com; img-src 'self' https://*.google-analytics.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()

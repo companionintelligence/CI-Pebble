@@ -41,6 +41,8 @@ async function shot(html, size, path) {
 }
 
 for (const s of [48, 96, 144, 512]) await shot(tile(s, tokens.dark.background.hex, color), s, join(out, `icon-${s}.png`));
+// Apple touch icon: full bleed (iOS applies its own rounded mask and paints transparency black).
+await shot(tile(180, tokens.dark.background.hex, color, 0.6, 'border-radius:0;'), 180, join(out, 'icon-touch-180.png'));
 for (const s of [144, 512]) await shot(tile(s, tokens.light.background.hex, color, 0.6, `box-shadow:inset 0 0 0 ${Math.max(1, s / 96)}px ${tokens.light.border.hex};`), s, join(out, `icon-light-${s}.png`));
 // Aplite and Pebble 2 are 1-bit: flat black mark on white, no tile radius tricks.
 for (const s of [48, 96]) await shot(tile(s, '#ffffff', mono.replace(/currentColor/g, '#000000'), 0.74, 'border-radius:0;'), s, join(out, `icon-mono-${s}.png`));

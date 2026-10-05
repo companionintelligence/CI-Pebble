@@ -7,7 +7,8 @@
  *
  * No-op unless GA_MEASUREMENT_ID matches /^G-[A-Z0-9]+$/, so the committed HTML
  * stays ID-free. Idempotent: files already carrying the snippet are skipped.
- * Node built-ins only.
+ * Both tags carry data-cfasync="false" so Cloudflare Rocket Loader leaves them alone
+ * (it would otherwise defer them past first paint). Node built-ins only.
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,8 +21,8 @@ if (!/^G-[A-Z0-9]+$/.test(id)) {
 
 const MARK = 'googletagmanager.com/gtag/js';
 const snippet =
-  `<script async src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>\n` +
-  `<script>\n` +
+  `<script async data-cfasync="false" src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>\n` +
+  `<script data-cfasync="false">\n` +
   `window.dataLayer = window.dataLayer || [];\n` +
   `function gtag(){dataLayer.push(arguments);}\n` +
   `gtag('js', new Date());\n` +

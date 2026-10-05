@@ -103,6 +103,28 @@ const assets = [
 ];
 for (const [from, to] of assets) emit(`site/assets/brand/${to}`, readFileSync(join(V, from)));
 
+// 4b. Icons the page links to (PNG favicon, apple-touch-icon, JSON-LD logo), copied byte for byte from the
+// store icons that scripts/render-icons.mjs draws, so the site can never drift from them.
+for (const [from, to] of [
+  ['icon-48.png', 'icon-48.png'], ['icon-512.png', 'icon-512.png'], ['icon-touch-180.png', 'apple-touch-icon.png'],
+]) emit(`site/assets/${to}`, readFileSync(join(ROOT, 'assets/appstore/icon', from)));
+
+// 4c. Web app manifest, from the copy tokens (names are never typed by hand).
+emit('site/site.webmanifest', JSON.stringify({
+  name: `${copy.products.memory.name} for Pebble`,
+  short_name: `${copy.products.memory.name.replace(/^Companion /, '')} for Pebble`,
+  description: `Recall and search your ${copy.products.memory.name} from your Pebble. ${copy.products.memory.tagline}`,
+  start_url: '/',
+  scope: '/',
+  display: 'browser',
+  background_color: tokens.light.background.hex,
+  theme_color: tokens.light.background.hex,
+  icons: [
+    { src: '/assets/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    { src: '/assets/icon-512.png', sizes: '512x512', type: 'image/png' },
+  ],
+}, null, 2) + '\n');
+
 const tpl = join(ROOT, 'site-src/index.template.html');
 if (existsSync(tpl)) {
   const lookup = (p) => p.split('.').reduce((o, k) => (o == null ? o : o[k]), copy);

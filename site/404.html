@@ -6,26 +6,43 @@
 <title>Page not found | Companion Memory for Pebble</title>
 <meta name="description" content="This page does not exist. Head back to Companion Memory for Pebble.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#0a6358">
+<meta name="theme-color" content="#f3faf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#041620" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/assets/brand/mark.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/icon-48.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
 <link rel="stylesheet" href="/assets/brand/tokens.css">
+<script data-cfasync="false">
+  /* Follow the system theme before first paint, or the choice saved from the home page. */
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (e) {}
+    var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) { document.documentElement.classList.add('dark'); }
+  }());
+</script>
 <style>
   @font-face { font-family: "Manrope"; src: url("/assets/brand/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--background); color: var(--foreground); font-family: "Manrope", system-ui, sans-serif; line-height: 1.55; text-align: center; }
-  img { height: 56px; width: auto; margin-bottom: 32px; }
+  a.logo { display: inline-block; margin-bottom: 32px; border-radius: 6px; }
+  img { height: 56px; width: auto; display: block; }
   h1 { font-size: clamp(32px, 6vw, 52px); letter-spacing: -0.02em; margin: 0 0 12px; font-weight: 800; }
   p { color: var(--muted-foreground); margin: 0 0 28px; }
-  a.btn { display: inline-block; padding: 13px 22px; border-radius: var(--radius); font-weight: 700; text-decoration: none; background: var(--gradient-button); color: var(--ci-button-foreground); box-shadow: var(--ci-button-shadow); }
+  p.more { margin: 24px 0 0; font-size: 15px; }
+  a { color: var(--ci-link); }
+  /* The pinned tokens.css does not define the --ci-button-* pair, so fall back to theme-stable tokens. */
+  a.btn { display: inline-block; padding: 13px 22px; border-radius: var(--radius); font-weight: 700; text-decoration: none; background: var(--gradient-button); color: var(--ci-button-foreground, var(--teal-50)); box-shadow: var(--ci-button-shadow, var(--shadow-md)); }
   :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 </style>
 </head>
 <body>
 <main>
-  <a href="/" aria-label="Companion Memory for Pebble"><img src="/assets/brand/mark.svg" alt="Companion Intelligence"></a>
+  <a class="logo" href="/" aria-label="Companion Memory for Pebble"><img src="/assets/brand/mark.svg" width="56" height="56" alt=""></a>
   <h1>Page not found</h1>
   <p>That page isn't here. The Pebble app lives on the home page.</p>
   <a class="btn" href="/">Back to Companion Memory for Pebble</a>
+  <p class="more"><a href="https://ci.computer">Back to ci.computer</a></p>
 </main>
 </body>
 </html>

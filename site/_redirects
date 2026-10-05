@@ -1,0 +1,2 @@
+# Browsers and crawlers ask for /favicon.ico whatever the page says; answer with the PNG icon, not the 404 page.
+/favicon.ico /assets/icon-48.png 302

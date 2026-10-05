@@ -10,6 +10,11 @@ on:
       - ".github/workflows/deploy-pebble-site.yml"
   workflow_dispatch: {}
 
+# One deploy at a time; a newer push waits for the running one instead of cancelling it mid-upload.
+concurrency:
+  group: pebble-site
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,10 +22,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # A failing main must not ship: run the same checks CI runs on the site before uploading it.
+      - name: Tests
+        run: npm test
+      - name: Site matches its template and the pinned brand canon
+        run: npm run brand:check
 
       # Injects GA4 into every HTML file's <head> at deploy time. No-op unless
       # the repo variable GA_MEASUREMENT_ID is set to a valid G-XXXX id:
       #   gh variable set GA_MEASUREMENT_ID --body G-XXXX --repo companionintelligence/CI-Pebble
+      # Changing the variable does not redeploy; run this workflow by hand afterwards.
       - name: Inject Google Analytics
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
@@ -31,7 +46,7 @@ jobs:
       #   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account that owns the
       #                            ci-pebble Pages project and the
       #                            ci.computer zone
-      # See site/README.md for how to create both and wire up the
+      # See docs/site-deploy.md for how to create both and wire up the
       # pebble.ci.computer custom domain.
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

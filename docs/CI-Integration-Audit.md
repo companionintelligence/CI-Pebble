@@ -214,7 +214,7 @@ are fixed in code and docs.
 The static site under `site/` is deployed to Cloudflare Pages (project `ci-pebble`, live at
 `ci-pebble.pages.dev`) and attached to `pebble.ci.computer`. Since the site now carries the brand, it
 follows the canon: `site-src/index.template.html` is rendered by `scripts/sync-brand.mjs` from the
-pinned CI-Common bundle in `vendor/brand/`. See `site/README.md` for deployment.
+pinned CI-Common bundle in `vendor/brand/`. See [`docs/site-deploy.md`](site-deploy.md) for deployment.
 
 ## 8. What comes next
 
