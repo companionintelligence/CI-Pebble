@@ -1,13 +1,17 @@
 name: Deploy pebble.ci.computer
 
+# >>> ci-local:gated original triggers below, restore with `ci-local restore`
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - "site/**"
+#       - "scripts/inject-ga.mjs"
+#       - "wrangler.toml"
+#       - ".github/workflows/deploy-pebble-site.yml"
+#   workflow_dispatch: {}
+# <<< ci-local:gated
 on:
-  push:
-    branches: [main]
-    paths:
-      - "site/**"
-      - "scripts/inject-ga.mjs"
-      - "wrangler.toml"
-      - ".github/workflows/deploy-pebble-site.yml"
   workflow_dispatch: {}
 
 # One deploy at a time; a newer push waits for the running one instead of cancelling it mid-upload.
