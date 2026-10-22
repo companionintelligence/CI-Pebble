@@ -107,7 +107,7 @@
 
   header.top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; padding: 16px 0; border-bottom: 1px solid var(--site-hairline); }
   header.top .brand { display: block; border-radius: var(--site-radius-control); text-decoration: none; }
-  header.top img { height: 36px; width: auto; }
+  header.top img { height: 44px; width: auto; }
   header.top nav { display: flex; gap: 20px; align-items: center; margin-left: auto; font-size: 15px; font-weight: 500; }
   header.top nav a:not(.btn) { text-decoration: none; color: var(--site-muted); }
   header.top nav a:not(.btn):hover { color: var(--site-ink); }
@@ -203,7 +203,7 @@
   footer { border-top: 1px solid var(--site-hairline); padding: 20px 0 28px; color: var(--site-muted); font-size: 13px; line-height: 1.4; }
   footer .row { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
   footer .brand { display: block; border-radius: var(--site-radius-control); }
-  footer img { height: 28px; width: auto; }
+  footer img { height: 36px; width: auto; }
   footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 20px; font-weight: 500; }
   footer a { color: var(--site-muted); text-decoration: none; display: inline-block; padding-block: 3px; }
   footer a:hover { color: var(--site-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
@@ -214,7 +214,7 @@
   @media (max-width: 480px) {
     header.top { gap: 8px 12px; }
     header.top nav { gap: 8px; }
-    header.top img { height: 28px; }
+    header.top img { height: 36px; }
     .btn.sm { padding: 7px 11px; font-size: 13px; }
     .theme { padding: 6px 10px; }
     th, td { padding: 10px 12px; }
@@ -226,7 +226,7 @@
 <a class="skip" href="#top">Skip to content</a>
 <div class="wrap">
   <header class="top">
-    <a class="brand" href="{{urls.site}}" aria-label="{{company.brand}} home"><img class="only-light" src="assets/brand/lockup-on-light.svg" width="363" height="100" alt=""><img class="only-dark" src="assets/brand/lockup.svg" width="271" height="74" alt="" aria-hidden="true"></a>
+    <a class="brand" href="{{urls.site}}" aria-label="{{company.brand}} home"><img class="only-light" src="assets/ci-logo-black-banner.svg" width="139" height="44" alt=""><img class="only-dark" src="assets/ci-logo-white-banner.svg" width="139" height="44" alt="" aria-hidden="true"></a>
     <nav aria-label="Primary">
       <a class="hide" href="#what">What it does</a>
       <a class="hide" href="#setup">Setup</a>
@@ -373,7 +373,7 @@ npm run build</code></pre></div></li>
 
   <footer>
     <div class="row">
-      <a class="brand" href="{{urls.site}}" aria-label="{{company.brand}} home"><img class="only-light" src="assets/brand/lockup-on-light.svg" width="363" height="100" alt="" loading="lazy"><img class="only-dark" src="assets/brand/lockup.svg" width="271" height="74" alt="" aria-hidden="true" loading="lazy"></a>
+      <a class="brand" href="{{urls.site}}" aria-label="{{company.brand}} home"><img class="only-light" src="assets/ci-logo-black-banner.svg" width="139" height="44" alt="" loading="lazy"><img class="only-dark" src="assets/ci-logo-white-banner.svg" width="139" height="44" alt="" aria-hidden="true" loading="lazy"></a>
       <nav aria-label="Footer">
         <ul>
           <li><a href="{{urls.site}}">{{company.brand}}</a></li>
