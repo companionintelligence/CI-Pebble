@@ -96,8 +96,8 @@ test('every local asset the pages reference exists', () => {
 test('metadata: canonical, social image, icons, a theme-color per scheme, manifest', () => {
   assert.match(home, /<link rel="canonical" href="https:\/\/pebble\.ci\.computer\/">/);
   assert.match(home, /<meta property="og:image" content="https:\/\/pebble\.ci\.computer\/assets\/og-image\.png">/);
-  assert.match(home, /<meta name="theme-color" content="#f3faf7" media="\(prefers-color-scheme: light\)">/);
-  assert.match(home, /<meta name="theme-color" content="#041620" media="\(prefers-color-scheme: dark\)">/);
+  assert.match(home, /<html lang="en" class="dark">/, 'the page starts dark');
+  assert.match(home, /<meta name="theme-color" content="#041620">/);
   assert.match(home, /rel="icon" href="assets\/icon-48\.png" type="image\/png" sizes="48x48"/);
   assert.match(home, /rel="apple-touch-icon" href="assets\/apple-touch-icon\.png" sizes="180x180"/);
   assert.match(home, /rel="preload" href="assets\/brand\/manrope\.woff2" as="font" type="font\/woff2" crossorigin/);
@@ -126,7 +126,7 @@ test('404 page links back to ci.computer and to the home page', () => {
   const l = anchors(notFound);
   assert.ok(l.some((a) => a.href === 'https://ci.computer' && /ci\.computer/.test(a.text)));
   assert.ok(l.some((a) => a.href === '/'));
-  assert.match(notFound, /prefers-color-scheme/, 'follows the system theme like the home page');
+  assert.match(notFound, /<html lang="en" class="dark">/, 'starts dark like the home page');
 });
 
 test('every user-facing page (home and 404) carries Buy, Download and Docs links, in the same tab', () => {
@@ -199,7 +199,7 @@ test('accessibility and layout guards in the page source', () => {
   assert.match(home, /<figcaption>Pebble Time Round<\/figcaption>/);
   assert.match(home, /ol\.steps \{[^}]*grid-template-columns: minmax\(0, 1fr\)/, 'a wide <pre> must not widen the grid on phones');
   assert.match(home, /ol\.steps li \{ min-width: 0;/);
-  assert.match(home, /var\(--ci-button-foreground, var\(--teal-50\)\)/, 'primary button label stays light even though tokens.css lacks --ci-button-foreground');
+  assert.match(home, /var\(--ci-button-foreground, var\(--teal-50, #ffffff\)\)/, 'primary button label stays light even though tokens.css lacks --ci-button-foreground');
   for (const m of home.matchAll(/<img\b[^>]*>/g)) assert.match(m[0], /width="\d+" height="\d+"/, 'images reserve their space');
 });
 

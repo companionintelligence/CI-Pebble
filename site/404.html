@@ -1,40 +1,58 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page not found | Companion Memory for Pebble</title>
 <meta name="description" content="This page does not exist. Head back to Companion Memory for Pebble.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#f3faf7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#041620" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#041620">
 <link rel="icon" href="/assets/brand/mark.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/icon-48.png" type="image/png" sizes="48x48">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
 <link rel="stylesheet" href="/assets/brand/tokens.css">
 <script data-cfasync="false">
-  /* Follow the system theme before first paint, or the choice saved from the home page. */
+  /* Start dark before first paint, unless the home page's toggle saved the light theme. */
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('theme'); } catch (e) {}
-    var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (dark) { document.documentElement.classList.add('dark'); }
+    if (saved === 'light') { document.documentElement.classList.remove('dark'); }
   }());
 </script>
 <style>
   @font-face { font-family: "Manrope"; src: url("/assets/brand/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+  :root {
+    color-scheme: light;
+    --site-ground: var(--background, #f3faf7);
+    --site-ink: var(--foreground, #0a222e);
+    --site-muted: var(--muted-foreground, #3a524b);
+    --site-mark-deep: var(--mark-deep, #066c80);
+    --site-mark-light: var(--mark-light, #3ae7ba);
+    --site-button: var(--button-primary, var(--site-mark-deep));
+    --site-button-hover: var(--button-primary-hover, color-mix(in srgb, var(--site-mark-deep) 84%, #ffffff));
+    --site-link: var(--link, var(--site-mark-deep));
+    --site-link-hover: var(--link-hover, var(--site-ink));
+    --site-radius-control: var(--radius-control, 3px);
+  }
+  .dark {
+    color-scheme: dark;
+    --site-link: var(--link, var(--site-mark-light));
+    --site-link-hover: var(--link-hover, #ffffff);
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--background); color: var(--foreground); font-family: "Manrope", system-ui, sans-serif; line-height: 1.55; text-align: center; }
-  a.logo { display: inline-block; margin-bottom: 32px; border-radius: 6px; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--site-ground); color: var(--site-ink); font-family: "Manrope", system-ui, sans-serif; font-size: 17px; line-height: 1.6; text-align: center; }
+  a.logo { display: inline-block; margin-bottom: 32px; border-radius: var(--site-radius-control); }
   img { height: 56px; width: auto; display: block; }
-  h1 { font-size: clamp(32px, 6vw, 52px); letter-spacing: -0.02em; margin: 0 0 12px; font-weight: 800; }
-  p { color: var(--muted-foreground); margin: 0 0 28px; }
-  nav.more { margin: 28px 0 0; font-size: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
-  nav.more a { padding: 6px 2px; }
-  a { color: var(--ci-link); }
-  /* The pinned tokens.css does not define the --ci-button-* pair, so fall back to theme-stable tokens. */
-  a.btn { display: inline-block; padding: 13px 22px; border-radius: var(--radius); font-weight: 700; text-decoration: none; background: var(--gradient-button); color: var(--ci-button-foreground, var(--teal-50)); box-shadow: var(--ci-button-shadow, var(--shadow-md)); }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  h1 { font-size: clamp(32px, 3.5vw + 10px, 60px); font-weight: 500; line-height: 1.04; letter-spacing: -0.025em; margin: 0 0 12px; }
+  p { color: var(--site-muted); margin: 0 0 28px; font-size: 19px; line-height: 1.5; }
+  nav.more { margin: 28px 0 0; font-size: 13px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
+  nav.more a { padding: 6px 2px; color: var(--site-muted); text-decoration: none; }
+  nav.more a:hover { color: var(--site-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+  a { color: var(--site-link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+  a:hover { color: var(--site-link-hover); }
+  a.btn { display: inline-block; padding: 12px 22px; border-radius: var(--site-radius-control); font-weight: 500; text-decoration: none; background: var(--site-button); color: #ffffff; }
+  a.btn:hover { background: var(--site-button-hover); color: #ffffff; }
+  :focus-visible { outline: 2px solid var(--site-link); outline-offset: 3px; }
 </style>
 </head>
 <body>

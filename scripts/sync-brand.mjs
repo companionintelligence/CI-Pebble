@@ -117,8 +117,8 @@ emit('site/site.webmanifest', JSON.stringify({
   start_url: '/',
   scope: '/',
   display: 'browser',
-  background_color: tokens.light.background.hex,
-  theme_color: tokens.light.background.hex,
+  background_color: tokens.dark.background.hex,
+  theme_color: tokens.dark.background.hex,
   icons: [
     { src: '/assets/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     { src: '/assets/icon-512.png', sizes: '512x512', type: 'image/png' },

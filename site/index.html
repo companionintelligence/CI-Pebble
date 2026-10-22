@@ -1,12 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Companion Memory for Pebble</title>
 <meta name="description" content="Recall and search your Companion Memory from your Pebble. Your AI remembers, because it's yours.">
-<meta name="theme-color" content="#f3faf7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#041620" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#041620">
 <link rel="canonical" href="https://pebble.ci.computer/">
 <meta property="og:site_name" content="Companion Intelligence">
 <meta property="og:type" content="website">
@@ -31,140 +30,192 @@
 <link rel="preload" href="assets/brand/manrope.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/brand/tokens.css">
 <script data-cfasync="false">
-  /* Follow the system theme before first paint; the toggle below overrides and remembers it. */
+  /* Start dark before first paint; the toggle below switches to light and remembers the choice. */
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('theme'); } catch (e) {}
-    var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (dark) { document.documentElement.classList.add('dark'); }
+    if (saved === 'light') { document.documentElement.classList.remove('dark'); }
   }());
 </script>
 <style>
   @font-face { font-family: "Manrope"; src: url("assets/brand/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
   @font-face { font-family: "JetBrains Mono"; src: url("assets/brand/jetbrains-mono.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
 
+  /* Companion site system (October 2026): the rules ci.computer and docs.ci.computer follow.
+     The page starts dark; the toggle keeps the light theme. Every --site-* alias reads the canon token
+     of the same role first (tokens 1.3.0, CI-Common PR #413) and falls back to the literal value. */
+  :root {
+    color-scheme: light;
+    --site-ground: var(--background, #f3faf7);
+    --site-panel: var(--card, #f0f9f5);
+    --site-ink: var(--foreground, #0a222e);
+    --site-muted: var(--muted-foreground, #3a524b);
+    --site-mark-deep: var(--mark-deep, #066c80);
+    --site-mark-mid: var(--mark-mid, #1fa89e);
+    --site-mark-light: var(--mark-light, #3ae7ba);
+    --site-button: var(--button-primary, var(--site-mark-deep));
+    --site-button-hover: var(--button-primary-hover, color-mix(in srgb, var(--site-mark-deep) 84%, #ffffff));
+    --site-cta: var(--cta, #069b5b);
+    --site-cta-hover: var(--cta-hover, #05824c);
+    /* On a light ground: the deep ring for links and labels, the page ink on hover. */
+    --site-link: var(--link, var(--site-mark-deep));
+    --site-link-hover: var(--link-hover, var(--site-ink));
+    --site-label-ink: var(--label-ink, var(--site-mark-deep));
+    --site-hairline: var(--hairline, color-mix(in srgb, var(--site-ink) 12%, transparent));
+    --site-hairline-strong: color-mix(in srgb, var(--site-ink) 30%, transparent);
+    --site-wash: color-mix(in srgb, var(--site-ink) 5%, transparent);
+    --site-radius-control: var(--radius-control, 3px);
+    --site-radius-card: var(--radius-card, 5px);
+    --site-radius-media: var(--radius-media, 3px);
+    --site-gutter: var(--grid-gutter, 24px);
+    --site-margin: calc((100vw - 11 * var(--site-gutter)) / 12 + var(--site-gutter));
+    --site-type-display: var(--type-display, clamp(36px, 3.5vw + 10px, 60px));
+    --site-type-title: var(--type-title, clamp(26px, 1.9vw + 9px, 36px));
+  }
+  /* On the dark ground: the light ring for links and labels, white on hover. */
+  .dark {
+    color-scheme: dark;
+    --site-link: var(--link, var(--site-mark-light));
+    --site-link-hover: var(--link-hover, #ffffff);
+    --site-label-ink: var(--label-ink, var(--site-mark-light));
+    --site-hairline: var(--hairline, color-mix(in srgb, var(--site-ink) 14%, transparent));
+  }
+  /* Under 900px everything spans the full width with a 16px side gutter. */
+  @media (max-width: 900px) { :root { --site-margin: 16px; } }
+
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    background: var(--background);
-    color: var(--foreground);
+    background: var(--site-ground);
+    color: var(--site-ink);
     font-family: "Manrope", system-ui, sans-serif;
-    line-height: 1.55;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.6;
   }
-  a { color: var(--ci-link); }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 6px; }
-  .wrap { width: min(1040px, 100% - 32px); margin-inline: auto; }
+  a { color: var(--site-link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+  a:hover { color: var(--site-link-hover); }
+  :focus-visible { outline: 2px solid var(--site-link); outline-offset: 3px; border-radius: var(--site-radius-control); }
+  /* Content sits in columns 2 to 11 of the 12-column grid. */
+  .wrap { width: 100%; padding-inline: var(--site-margin); }
   .only-light { display: block; } .only-dark { display: none; }
   .dark .only-light { display: none; } .dark .only-dark { display: block; }
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
-  .skip { position: absolute; left: 16px; top: -64px; z-index: 10; padding: 10px 16px; border-radius: var(--radius); background: var(--primary); color: var(--primary-foreground); font-weight: 700; text-decoration: none; }
+  .skip { position: absolute; left: 16px; top: -64px; z-index: 10; padding: 10px 16px; border-radius: var(--site-radius-control); background: var(--site-button); color: #ffffff; font-weight: 500; text-decoration: none; }
   .skip:focus { top: 12px; }
 
-  header.top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; padding: 20px 0; }
-  header.top .brand { display: block; border-radius: 6px; }
-  header.top img { height: 34px; width: auto; }
-  header.top nav { display: flex; gap: 20px; align-items: center; margin-left: auto; font-size: 15px; font-weight: 600; }
-  header.top nav a:not(.btn) { text-decoration: none; color: var(--muted-foreground); }
-  header.top nav a:not(.btn):hover { color: var(--foreground); }
-  .theme { border: 1px solid var(--border); background: var(--card); color: var(--foreground); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .theme[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+  header.top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; padding: 16px 0; border-bottom: 1px solid var(--site-hairline); }
+  header.top .brand { display: block; border-radius: var(--site-radius-control); text-decoration: none; }
+  header.top img { height: 44px; width: auto; }
+  header.top nav { display: flex; gap: 20px; align-items: center; margin-left: auto; font-size: 15px; font-weight: 500; }
+  header.top nav a:not(.btn) { text-decoration: none; color: var(--site-muted); }
+  header.top nav a:not(.btn):hover { color: var(--site-ink); }
+  .theme { border: 1px solid var(--site-hairline-strong); background: transparent; color: var(--site-muted); border-radius: var(--site-radius-control); padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .theme:hover { color: var(--site-ink); border-color: var(--site-ink); }
 
-  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; padding: 48px 0 72px; }
-  .eyebrow { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); background: var(--muted); border-radius: 999px; padding: 5px 12px; }
-  h1 { font-size: clamp(38px, 6vw, 60px); line-height: 1.04; letter-spacing: -0.02em; margin: 18px 0 16px; font-weight: 800; }
-  .lead { font-size: 19px; color: var(--muted-foreground); max-width: 34ch; margin: 0 0 20px; }
-  .notice { max-width: 46ch; margin: 0 0 24px; padding: 12px 16px; font-size: 15px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: var(--radius-lg, 10px); }
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; padding: 56px 0 72px; }
+  /* Small labels: 13px, weight 600, uppercase, 0.12em tracking, in the ring colour. */
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--site-label-ink); }
+  h1 { font-size: var(--site-type-display); font-weight: 500; line-height: 1.04; letter-spacing: -0.025em; margin: 18px 0 16px; }
+  .lead { font-size: 19px; font-weight: 400; line-height: 1.5; color: var(--site-muted); max-width: 34ch; margin: 0 0 20px; }
+  .notice { max-width: 46ch; margin: 0 0 24px; padding: 12px 16px; font-size: 15px; background: var(--site-panel); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; }
-  .aside { margin: 16px 0 0; font-size: 14px; color: var(--muted-foreground); max-width: 60ch; }
-  .btn { display: inline-block; padding: 13px 22px; border-radius: var(--radius); font-weight: 700; font-size: 16px; text-decoration: none; border: 1px solid transparent; }
+  .aside { margin: 16px 0 0; font-size: 14px; color: var(--site-muted); max-width: 60ch; }
+  /* Buttons: 3px radius, Manrope 500, flat. Primary is the deep ring; secondary is outlined in the ink. */
+  .btn { display: inline-block; padding: 12px 22px; border-radius: var(--site-radius-control); font-weight: 500; font-size: 16px; text-decoration: none; border: 1px solid transparent; transition: background-color .15s ease, border-color .15s ease; }
   .btn.sm { padding: 8px 14px; font-size: 14px; white-space: nowrap; }
-  /* The pinned tokens.css does not define the --ci-button-* pair, so fall back to theme-stable tokens:
-     the button gradient is the same teal in both themes, so its label must be light in both. */
-  .btn.primary { background: var(--gradient-button); color: var(--ci-button-foreground, var(--teal-50)); box-shadow: var(--ci-button-shadow, var(--shadow-md)); }
-  .btn.secondary { border-color: var(--primary); border-width: 2px; padding: 12px 21px; color: var(--foreground); background: var(--card); }
-  .btn.secondary.sm { padding: 7px 13px; }
+  .btn.primary { background: var(--site-button); border-color: var(--site-button); color: var(--ci-button-foreground, var(--teal-50, #ffffff)); }
+  .btn.primary:hover { background: var(--site-button-hover); border-color: var(--site-button-hover); color: #ffffff; }
+  .btn.secondary { border-color: var(--site-ink); color: var(--site-ink); background: transparent; }
+  .btn.secondary:hover { background: var(--site-wash); color: var(--site-ink); }
+  /* The one highlighted call to action on the page: accent green, white text at weight 600. */
+  .btn.cta-main { background: var(--site-cta); border-color: var(--site-cta); color: #ffffff; font-weight: 600; }
+  .btn.cta-main:hover { background: var(--site-cta-hover); border-color: var(--site-cta-hover); color: #ffffff; }
 
   .watches { display: flex; gap: 18px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
   figure.watch { margin: 0; text-align: center; }
-  .bezel { background: linear-gradient(160deg, var(--teal-900), var(--teal-950)); padding: 14px; border-radius: 22px; box-shadow: var(--shadow-lg); display: inline-block; }
+  .bezel { background: var(--site-panel); border: 1px solid var(--site-hairline); padding: 14px; border-radius: var(--site-radius-card); display: inline-block; }
   .bezel.round { border-radius: 50%; padding: 14px; }
-  .bezel img { display: block; image-rendering: pixelated; border-radius: 6px; }
+  .bezel img { display: block; image-rendering: pixelated; border-radius: var(--site-radius-media); }
   .bezel.round img { border-radius: 50%; }
-  figcaption { margin-top: 10px; font-size: 13px; color: var(--muted-foreground); }
+  figcaption { margin-top: 10px; font-size: 13px; color: var(--site-muted); }
 
-  section { padding: 56px 0; border-top: 1px solid var(--border); }
-  h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.01em; margin: 0 0 12px; }
-  .sub { color: var(--muted-foreground); max-width: 60ch; margin: 0 0 32px; }
-  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); padding: 22px; box-shadow: var(--shadow-sm); }
-  .card h3 { margin: 0 0 6px; font-size: 18px; }
-  .card p { margin: 0; color: var(--muted-foreground); font-size: 15px; }
+  section { padding: 56px 0; border-top: 1px solid var(--site-hairline); }
+  h2 { font-size: var(--site-type-title); font-weight: 500; line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 12px; }
+  .sub { color: var(--site-muted); max-width: 60ch; margin: 0 0 32px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+  .card { background: var(--site-panel); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); padding: 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; line-height: 1.3; }
+  .card p { margin: 0; color: var(--site-muted); font-size: 15px; }
   .card .btn { margin-top: 16px; }
-  .tag { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--muted); border-radius: 999px; padding: 3px 10px; }
+  .tag { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--site-label-ink); border: 1px solid var(--site-hairline-strong); border-radius: var(--site-radius-control); padding: 2px 8px; }
 
   svg.diagram { width: 100%; height: auto; max-width: 860px; display: block; margin: 0 auto; }
-  svg.diagram text { font-family: "Manrope", system-ui, sans-serif; fill: var(--foreground); font-size: 15px; font-weight: 600; }
-  svg.diagram .small { font-size: 12px; font-weight: 500; fill: var(--muted-foreground); }
-  svg.diagram .node { fill: var(--card); stroke: var(--border); stroke-width: 1.5; }
-  svg.diagram .core { fill: var(--primary); stroke: none; }
-  svg.diagram text.oncore { fill: var(--primary-foreground); }
-  svg.diagram .line { stroke: var(--primary); stroke-width: 2; fill: none; }
-  svg.diagram .never { fill: none; stroke: var(--destructive); stroke-width: 1.5; stroke-dasharray: 5 4; }
-  svg.diagram .neverline { stroke: var(--destructive); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; opacity: .7; }
+  svg.diagram text { font-family: "Manrope", system-ui, sans-serif; fill: var(--site-ink); font-size: 15px; font-weight: 600; }
+  svg.diagram .small { font-size: 12px; font-weight: 500; fill: var(--site-muted); }
+  svg.diagram .node { fill: var(--site-panel); stroke: var(--site-hairline-strong); stroke-width: 1.5; rx: 5px; }
+  svg.diagram .core { fill: var(--site-button); stroke: none; rx: 5px; }
+  svg.diagram text.oncore { fill: #ffffff; }
+  svg.diagram .line { stroke: var(--site-link); stroke-width: 2; fill: none; }
+  svg.diagram .never { fill: none; stroke: var(--site-muted); stroke-width: 1.5; stroke-dasharray: 5 4; rx: 5px; }
+  svg.diagram .neverline { stroke: var(--site-muted); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; opacity: .7; }
 
   /* The same path as the diagram, as stacked text, for phones where the 860 unit SVG would shrink to unreadable. */
   ol.flow { display: none; list-style: none; margin: 0; padding: 0; max-width: 420px; margin-inline: auto; }
   ol.flow li { text-align: center; }
-  ol.flow .node { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); padding: 14px 16px; }
-  ol.flow .node strong { display: block; font-size: 17px; }
-  ol.flow .node span { font-size: 14px; color: var(--muted-foreground); }
-  ol.flow .node.core { background: var(--primary); border-color: transparent; color: var(--primary-foreground); }
+  ol.flow .node { background: var(--site-panel); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); padding: 14px 16px; }
+  ol.flow .node strong { display: block; font-size: 17px; font-weight: 600; }
+  ol.flow .node span { font-size: 14px; color: var(--site-muted); }
+  ol.flow .node.core { background: var(--site-button); border-color: transparent; color: #ffffff; }
   ol.flow .node.core span { color: inherit; }
-  ol.flow .link { display: flex; flex-direction: column; align-items: center; padding: 8px 0; font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
-  ol.flow .link::before { content: "\2193"; content: "\2193" / ""; font-size: 20px; line-height: 1; color: var(--primary); }
-  ol.flow .never { margin-top: 16px; padding: 10px 14px; font-size: 14px; color: var(--muted-foreground); border: 1.5px dashed var(--destructive); border-radius: var(--radius-lg, 10px); }
+  ol.flow .link { display: flex; flex-direction: column; align-items: center; padding: 8px 0; font-size: 13px; font-weight: 600; color: var(--site-muted); }
+  ol.flow .link::before { content: "\2193"; content: "\2193" / ""; font-size: 20px; line-height: 1; color: var(--site-link); }
+  ol.flow .never { margin-top: 16px; padding: 10px 14px; font-size: 14px; color: var(--site-muted); border: 1px dashed var(--site-hairline-strong); border-radius: var(--site-radius-card); }
 
   ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  ol.steps li { min-width: 0; counter-increment: s; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); padding: 20px 20px 20px 64px; position: relative; }
-  ol.steps li::before { content: counter(s); position: absolute; left: 18px; top: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); display: grid; place-items: center; font-weight: 800; }
-  ol.steps h3 { margin: 0 0 4px; font-size: 17px; }
-  ol.steps p { margin: 0 0 8px; color: var(--muted-foreground); }
-  .code { margin: 10px 0 0; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); overflow: hidden; }
+  ol.steps li { min-width: 0; counter-increment: s; background: var(--site-panel); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); padding: 20px 20px 20px 64px; position: relative; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 18px; top: 16px; font-size: 32px; font-weight: 300; line-height: 1.2; letter-spacing: -0.03em; color: var(--site-label-ink); }
+  ol.steps h3 { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
+  ol.steps p { margin: 0 0 8px; color: var(--site-muted); }
+  .code { margin: 10px 0 0; background: var(--muted, var(--site-wash)); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); overflow: hidden; }
   .code .bar { display: flex; justify-content: flex-end; padding: 6px 8px 0; }
-  .code button { font: inherit; font-size: 12px; font-weight: 600; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  .code button { font: inherit; font-size: 12px; font-weight: 500; color: var(--site-ink); background: transparent; border: 1px solid var(--site-hairline-strong); border-radius: var(--site-radius-control); padding: 3px 9px; cursor: pointer; }
+  .code button:hover { border-color: var(--site-ink); }
   .code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font: 13.5px/1.55 "JetBrains Mono", ui-monospace, monospace; }
   .code .bar + pre { padding-top: 6px; }
-  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .92em; background: var(--muted); border-radius: 5px; padding: 1px 6px; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .92em; background: var(--muted, var(--site-wash)); border-radius: var(--site-radius-media); padding: 1px 6px; }
   pre code { background: none; padding: 0; font-size: inherit; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl, 14px); overflow: hidden; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); background: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--site-panel); border: 1px solid var(--site-hairline); border-radius: var(--site-radius-card); overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--site-hairline); vertical-align: top; }
+  th { font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--site-label-ink); background: var(--site-wash); }
   tr:last-child td { border-bottom: 0; }
   .scroll { overflow-x: auto; }
-  .note { margin: 16px 0 0; font-size: 14px; color: var(--muted-foreground); max-width: 60ch; }
+  .note { margin: 16px 0 0; font-size: 14px; color: var(--site-muted); max-width: 60ch; }
 
   ul.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
   ul.checks li { padding-left: 30px; position: relative; }
-  ul.checks li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 12px; height: 7px; border-left: 3px solid var(--primary); border-bottom: 3px solid var(--primary); transform: rotate(-45deg); }
+  ul.checks li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 12px; height: 7px; border-left: 3px solid var(--site-label-ink); border-bottom: 3px solid var(--site-label-ink); transform: rotate(-45deg); }
 
-  .road { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-  footer { border-top: 1px solid var(--border); padding: 36px 0 56px; color: var(--muted-foreground); font-size: 14px; }
-  footer .row { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
-  footer .brand { display: block; border-radius: 6px; }
-  footer img { height: 30px; width: auto; }
-  footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-weight: 600; }
-  footer .legal { margin: 20px 0 0; }
+  .road { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; }
+  /* Footer: condensed, 13px, hairline on top; muted links that go to the ink on hover. */
+  footer { border-top: 1px solid var(--site-hairline); padding: 20px 0 28px; color: var(--site-muted); font-size: 13px; line-height: 1.4; }
+  footer .row { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
+  footer .brand { display: block; border-radius: var(--site-radius-control); }
+  footer img { height: 36px; width: auto; }
+  footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 20px; font-weight: 500; }
+  footer a { color: var(--site-muted); text-decoration: none; display: inline-block; padding-block: 3px; }
+  footer a:hover { color: var(--site-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+  footer .legal { margin: 12px 0 0; }
 
   @media (max-width: 800px) { .hero { grid-template-columns: 1fr; padding-top: 24px; } header.top nav a.hide { display: none; } }
   @media (max-width: 600px) { svg.diagram { display: none; } ol.flow { display: block; } }
   @media (max-width: 480px) {
     header.top { gap: 8px 12px; }
     header.top nav { gap: 8px; }
-    header.top img { height: 26px; }
+    header.top img { height: 36px; }
     .btn.sm { padding: 7px 11px; font-size: 13px; }
-    .btn.secondary.sm { padding: 6px 10px; }
     .theme { padding: 6px 10px; }
     th, td { padding: 10px 12px; }
   }
@@ -175,7 +226,7 @@
 <a class="skip" href="#top">Skip to content</a>
 <div class="wrap">
   <header class="top">
-    <a class="brand" href="https://ci.computer" aria-label="Companion Intelligence home"><img class="only-light" src="assets/brand/lockup-on-light.svg" width="363" height="100" alt=""><img class="only-dark" src="assets/brand/lockup.svg" width="271" height="74" alt="" aria-hidden="true"></a>
+    <a class="brand" href="https://ci.computer" aria-label="Companion Intelligence home"><img class="only-light" src="assets/ci-logo-black-banner.svg" width="139" height="44" alt=""><img class="only-dark" src="assets/ci-logo-white-banner.svg" width="139" height="44" alt="" aria-hidden="true"></a>
     <nav aria-label="Primary">
       <a class="hide" href="#what">What it does</a>
       <a class="hide" href="#setup">Setup</a>
@@ -194,7 +245,7 @@
         <p class="lead">Your AI remembers, because it's yours. Recall and search it from your Pebble. Every request goes to the Memory you host.</p>
         <p class="notice"><strong>Developer preview.</strong> Not yet available to install. Ask in the <a href="https://ci.computer/gg">Discord</a> for access.</p>
         <div class="cta">
-          <a class="btn primary" href="https://ci.computer/core">Buy Companion Core</a>
+          <a class="btn primary cta-main" href="https://ci.computer/core">Buy Companion Core</a>
           <a class="btn secondary" href="https://ci.computer/download">Download Companion</a>
         </div>
         <p class="aside">Companion Memory installs from Companion Hub. <a href="#setup">Preview the setup</a> or <a href="https://docs.ci.computer/docs/apps-available/first-party-apps/pebble-os">read the docs</a>.</p>
@@ -322,7 +373,7 @@ npm run build</code></pre></div></li>
 
   <footer>
     <div class="row">
-      <a class="brand" href="https://ci.computer" aria-label="Companion Intelligence home"><img class="only-light" src="assets/brand/lockup-on-light.svg" width="363" height="100" alt="" loading="lazy"><img class="only-dark" src="assets/brand/lockup.svg" width="271" height="74" alt="" aria-hidden="true" loading="lazy"></a>
+      <a class="brand" href="https://ci.computer" aria-label="Companion Intelligence home"><img class="only-light" src="assets/ci-logo-black-banner.svg" width="139" height="44" alt="" loading="lazy"><img class="only-dark" src="assets/ci-logo-white-banner.svg" width="139" height="44" alt="" aria-hidden="true" loading="lazy"></a>
       <nav aria-label="Footer">
         <ul>
           <li><a href="https://ci.computer">Companion Intelligence</a></li>
@@ -346,6 +397,8 @@ npm run build</code></pre></div></li>
     btn.addEventListener('click', function () {
       var dark = root.classList.toggle('dark');
       try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+      var tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) { tc.setAttribute('content', dark ? '#041620' : '#f3faf7'); }
       sync();
     });
 
