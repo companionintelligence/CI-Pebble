@@ -181,6 +181,19 @@ warnings, all from the generated brand block in the companion.
 | No Speak row | Your watch has no microphone (original Pebble). Pick a predefined question. |
 | Watch says "Phone unreachable" | Open the Pebble phone app and check the Bluetooth link. |
 
+<!-- companion-hub-readme-deep-review -->
+
+## Capability and permission checklist
+
+Before enabling a key-backed feature, use the feature/key table above to confirm the exact scope it needs. Start with only the features you intend to use, keep the device's API key private, and verify the [Privacy](#privacy) and [Troubleshooting](#troubleshooting) sections if capture or sync behavior is unexpected.
+
+| Before use | Verify |
+|---|---|
+| Device pairing | The intended Pebble is connected |
+| API key | The key is configured on the device and not shared in logs |
+| Optional feature | Its required key scope is enabled |
+| Data sync | The configured destination is reachable |
+
 ## Credits and license
 
 Built on [Rebble](https://rebble.io) and the Pebble SDK. Brand, fonts and logos from CI-Common; Manrope and
