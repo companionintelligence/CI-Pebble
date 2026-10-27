@@ -9,7 +9,18 @@
 
 <p align="center"><strong>Pebble smartwatch app that acts as a wearable interface for the Companion Intelligence (CI) Digital Memory server and the Ollama</strong></p>
 
-<p align="center"><a href="https://pebble.ci.computer">Website</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
+</div>
+
+[![release](https://img.shields.io/badge/release-not%20published-757575?style=flat-square)](https://github.com/companionintelligence/CI-Pebble/releases)
+[![Pebble platforms](https://img.shields.io/badge/Pebble-Aplite%20%C2%B7%20Basalt%20%C2%B7%20Chalk%20%C2%B7%20Diorite%20%C2%B7%20Emery-0a6358)](docs/appstore-listing.md)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-0a6358)](LICENSE.md)
+[![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
+
+<p align="center"><a href="https://pebble.ci.computer">Website</a> · <a href="docs/CI-Integration-Audit.md">Documentation</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
+
+<p align="center">
+  <a href="#set-up-in-four-steps"><img src="https://img.shields.io/badge/Build%20and%20install-Build%20and%20install-0a6358?style=for-the-badge&logo=github&logoColor=white" alt="Build and install" height="30"></a>
+</p>
 
 <!-- BEGIN GENERATED tagline -->
 **Your AI remembers, because it's yours.**
@@ -18,9 +29,7 @@
 Recall and search your Companion Memory from your wrist. The watch asks your phone, your phone asks
 the Memory you host, and the answer comes back with a short buzz.
 
-[![Pebble platforms](https://img.shields.io/badge/Pebble-Aplite%20%C2%B7%20Basalt%20%C2%B7%20Chalk%20%C2%B7%20Diorite%20%C2%B7%20Emery-0a6358)](docs/appstore-listing.md)
 [![SDK 3](https://img.shields.io/badge/SDK-3-0a6358)](appinfo.json)
-[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-0a6358)](LICENSE.md)
 [![Site](https://img.shields.io/badge/site-pebble.ci.computer-0a6358)](https://pebble.ci.computer)
 
 [**Set up in four steps**](#set-up-in-four-steps) &nbsp;·&nbsp;
@@ -29,6 +38,8 @@ the Memory you host, and the answer comes back with a short buzz.
 [Store listing](docs/appstore-listing.md)
 
 <br>
+
+## Screenshots
 
 <table>
   <tr>
@@ -40,8 +51,6 @@ the Memory you host, and the answer comes back with a short buzz.
 </table>
 
 <sub>Every screenshot in this repository is captured from the real app on the Pebble emulator by <a href="scripts/emulator-shots.sh"><code>scripts/emulator-shots.sh</code></a>.</sub>
-
-</div>
 
 ---
 
@@ -57,6 +66,19 @@ the Memory you host, and the answer comes back with a short buzz.
 
 An answer buzzes the watch and appears as short bullet lines. Errors state a fact and a fix, for
 example "Key rejected. Paste it again in settings."
+
+
+## How it fits together
+
+The watch communicates only with the phone over Pebble's AppMessage; the phone calls Companion Memory using a scoped API key and returns a short result to the watch.
+
+```mermaid
+flowchart LR
+  Watch[Pebble watch app] <-->|Bluetooth| Phone[Phone companion]
+  Phone -->|HTTPS and x-api-key| Memory[Companion Memory API]
+  Memory --> Phone
+  Phone --> Watch
+```
 
 ## How it works
 
