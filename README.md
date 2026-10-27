@@ -5,7 +5,11 @@
   <img src="site/assets/brand/lockup-on-light.svg" alt="Companion Intelligence" height="56">
 </picture>
 
-# Companion Memory for Pebble
+<h1 align="center">Companion Memory for Pebble</h1>
+
+<p align="center"><strong>Pebble smartwatch app that acts as a wearable interface for the Companion Intelligence (CI) Digital Memory server and the Ollama</strong></p>
+
+<p align="center"><a href="https://pebble.ci.computer">Website</a></p>
 
 <!-- BEGIN GENERATED tagline -->
 **Your AI remembers, because it's yours.**
