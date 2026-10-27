@@ -9,7 +9,7 @@
 
 <p align="center"><strong>Pebble smartwatch app that acts as a wearable interface for the Companion Intelligence (CI) Digital Memory server and the Ollama</strong></p>
 
-<p align="center"><a href="https://pebble.ci.computer">Website</a></p>
+<p align="center"><a href="https://pebble.ci.computer">Website</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
 
 <!-- BEGIN GENERATED tagline -->
 **Your AI remembers, because it's yours.**
