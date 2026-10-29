@@ -1,0 +1,16 @@
+{
+  "name": "ci-pebble-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "doctor": "ci-video doctor",
+    "build": "ci-video build",
+    "check": "ci-video check",
+    "render": "ci-video render",
+    "narrate": "ci-video narrate",
+    "status": "ci-video status"
+  },
+  "devDependencies": {
+    "@companionintelligence/video-kit": "^0.1.0"
+  }
+}
