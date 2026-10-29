@@ -37,3 +37,9 @@ jobs:
           pebble sdk install latest
       - name: Build for every platform
         run: npm run build
+      - name: Upload the watch app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-memory-pbw
+          path: build/companion-memory.pbw
+          if-no-files-found: error
