@@ -54,11 +54,13 @@ test('Docs links go to the matching docs page; API keys and the privacy policy a
   assert.ok(to(docs + '#roadmap').length === 1, 'the roadmap link goes to the docs page');
   assert.ok(to('https://docs.ci.computer/docs/connect/api-keys').length === 1);
   assert.ok(to('https://ci.computer/privacy-policy').length >= 2);
-  assert.ok(to('https://ci.computer/gg').length >= 2, 'Discord, for preview access');
+  assert.ok(to('https://ci.computer/gg').length >= 2, 'Discord, for feedback');
 });
 
-test('nothing links into the private CI-Pebble repository', () => {
-  assert.ok(!/github\.com\/companionintelligence/i.test(home + notFound), 'the repo is private; a public link is a 404');
+test('the only repository link is the public CI-Pebble source', () => {
+  const repoLinks = links.filter((l) => /github\.com\/companionintelligence/i.test(l.href || ''));
+  for (const l of repoLinks) assert.equal(l.href, 'https://github.com/companionintelligence/CI-Pebble', 'the repo is public; link only the Pebble source');
+  assert.ok(!/github\.com\/companionintelligence/i.test(notFound));
 });
 
 test('links to ci.computer open in the same tab; any new tab uses rel=noopener', () => {
@@ -68,8 +70,11 @@ test('links to ci.computer open in the same tab; any new tab uses rel=noopener',
   }
 });
 
-test('the page says it is a developer preview and not yet installable', () => {
-  assert.match(home, /Developer preview\.<\/strong> Not yet available to install/);
+test('the page says it is on the Rebble App Store and has not been tested on a watch yet', () => {
+  assert.match(home, /Available on the Rebble App Store\.<\/strong> Install it from the <a href="https:\/\/apps\.rebble\.io\/en_US\/application\/6ae4182fb99ed900093c95f4">Rebble App Store<\/a>/);
+  assert.match(home, /has not yet been tested on a physical watch/);
+  assert.doesNotMatch(home, /Not yet available to install/, 'it is published');
+  assert.doesNotMatch(home, /developer preview/i, 'no stale preview wording');
   assert.doesNotMatch(home, /Ten minutes/i, 'no unsourced timing claim');
   assert.doesNotMatch(home, /Built on Rebble/, 'overstates the Rebble relationship');
   assert.match(home, /<h2>Planned, not in v1\.0\.<\/h2>/);

@@ -243,12 +243,13 @@
         <span class="eyebrow">Companion Memory for Pebble</span>
         <h1>Your Memory, on your wrist.</h1>
         <p class="lead">Your AI remembers, because it's yours. Recall and search it from your Pebble. Every request goes to the Memory you host.</p>
-        <p class="notice"><strong>Developer preview.</strong> Not yet available to install. Ask in the <a href="https://ci.computer/gg">Discord</a> for access.</p>
+        <p class="notice"><strong>Available on the Rebble App Store.</strong> Install it from the <a href="https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4">Rebble App Store</a>. It is version 1.0 and has not yet been tested on a physical watch, so tell us what you find in the <a href="https://ci.computer/gg">Discord</a>.</p>
         <div class="cta">
-          <a class="btn primary cta-main" href="https://ci.computer/core">Buy Companion Core</a>
+          <a class="btn primary cta-main" href="https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4">Get it on Rebble</a>
+          <a class="btn secondary" href="https://ci.computer/core">Buy Companion Core</a>
           <a class="btn secondary" href="https://ci.computer/download">Download Companion</a>
         </div>
-        <p class="aside">Companion Memory installs from Companion Hub. <a href="#setup">Preview the setup</a> or <a href="https://docs.ci.computer/docs/apps-available/first-party-apps/pebble-os">read the docs</a>.</p>
+        <p class="aside">Companion Memory installs from Companion Hub. <a href="#setup">See the setup</a> or <a href="https://docs.ci.computer/docs/apps-available/first-party-apps/pebble-os">read the docs</a>.</p>
       </div>
       <div class="watches" role="group" aria-label="The app running on a Pebble Time and a Pebble Time Round">
         <figure class="watch"><span class="bezel"><img src="assets/screens/basalt-01-main-menu.png" width="144" height="168" alt="Main menu on a Pebble Time: Recall, Ask, Last answer"></span><figcaption>Pebble Time</figcaption></figure>
@@ -258,11 +259,11 @@
 
     <section id="need">
       <h2>What you need</h2>
-      <p class="sub">The Pebble app is the wrist. Your Companion Memory is where the answers come from. The app is a developer preview with no public download or store listing yet. To ask about access or follow progress, join the <a href="https://ci.computer/gg">Discord</a>.</p>
+      <p class="sub">The Pebble app is the wrist. Your Companion Memory is where the answers come from. Install the app from the <a href="https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4">Rebble App Store</a> in the Pebble phone app. It is version 1.0 and has not yet been tested on a physical watch. To report what you find or follow progress, join the <a href="https://ci.computer/gg">Discord</a>.</p>
       <div class="grid3">
         <div class="card"><h3>A Companion Memory you host</h3><p>The app talks to your Companion Memory. Today it installs from Companion Hub, which runs on any machine.</p><a class="btn secondary" href="https://ci.computer/download">Download Companion</a></div>
         <div class="card"><h3>Companion Core</h3><p>Personal AI server. Self-hosted AI, private memory, and a personal app store on hardware you control.</p><a class="btn primary" href="https://ci.computer/core">Buy Companion Core</a></div>
-        <div class="card"><h3>A Pebble and its phone app</h3><p>The watchapp targets all five Pebble platforms. You also need the Pebble phone app for your watch.</p><span class="tag">developer preview</span></div>
+        <div class="card"><h3>A Pebble and its phone app</h3><p>The watchapp targets all five Pebble platforms. You also need the Pebble phone app for your watch.</p><span class="tag">on Rebble</span></div>
       </div>
     </section>
 
@@ -316,18 +317,18 @@
     </section>
 
     <section id="setup">
-      <h2>Setup, for preview testers.</h2>
-      <p class="sub">These steps are for people who have access to the app's source, because the Pebble app is a developer preview. You need a running <a href="https://ci.computer/memory">Companion Memory</a> and a Pebble.</p>
+      <h2>Setup in four steps.</h2>
+      <p class="sub">You need a running <a href="https://ci.computer/memory">Companion Memory</a> and a Pebble.</p>
       <ol class="steps" role="list">
         <li><h3>Create an API key</h3><p>In Companion Memory, open Settings, <a href="https://docs.ci.computer/docs/connect/api-keys">API keys</a>, and create one with the <code>memory</code> scope. Test it from any terminal:</p>
 <div class="code"><pre tabindex="0" role="region" aria-label="API test command"><code>curl -X POST https://your-memory.example/api/memory/recall \
   -H "x-api-key: YOUR_KEY" -H "Content-Type: application/json" \
   -d '{"query": "what happened recently?", "maxResults": 3}'</code></pre></div></li>
-        <li><h3>Build the watch app</h3><p>In <a href="https://cloudpebble.repebble.com/">CloudPebble</a>, import the watchapp's source repository (you need access to it) and press Compile. Or locally:</p>
+        <li><h3>Install the watch app</h3><p>Open the <a href="https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4">Companion Memory listing</a> in the Pebble phone app and install it on your watch. Prefer to build it yourself? The source is public at <a href="https://github.com/companionintelligence/CI-Pebble">CI-Pebble</a>. In <a href="https://cloudpebble.repebble.com/">CloudPebble</a>, import the repository and press Compile. Or locally:</p>
 <div class="code"><pre tabindex="0" role="region" aria-label="Local build commands"><code>uv tool install pebble-tool
 pebble sdk install latest
 npm run build</code></pre></div></li>
-        <li><h3>Install it</h3><p>Send the build to your watch from CloudPebble, or try it first in the emulator with <code>pebble install --emulator basalt</code>.</p></li>
+        <li><h3>Try it in the emulator</h3><p>No watch to hand? Run <code>pebble install --emulator basalt</code> after a local build to see it first.</p></li>
         <li><h3>Connect your Memory</h3><p>In the Pebble phone app, open Companion Memory settings. Enter your Memory URL and the key. Save, and the app checks the connection and tells you what works.</p></li>
       </ol>
     </section>
