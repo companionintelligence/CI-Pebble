@@ -11,7 +11,7 @@
 
 </div>
 
-[![release](https://img.shields.io/badge/release-not%20published-757575?style=flat-square)](https://github.com/companionintelligence/CI-Pebble/releases)
+[![Rebble App Store](https://img.shields.io/badge/Rebble%20App%20Store-Companion%20Memory-0a6358?style=flat-square)](https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4)
 [![Pebble platforms](https://img.shields.io/badge/Pebble-Aplite%20%C2%B7%20Basalt%20%C2%B7%20Chalk%20%C2%B7%20Diorite%20%C2%B7%20Emery-0a6358)](docs/appstore-listing.md)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-0a6358)](LICENSE.md)
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
@@ -32,7 +32,8 @@ the Memory you host, and the answer comes back with a short buzz.
 [![SDK 3](https://img.shields.io/badge/SDK-3-0a6358)](appinfo.json)
 [![Site](https://img.shields.io/badge/site-pebble.ci.computer-0a6358)](https://pebble.ci.computer)
 
-[**Set up in four steps**](#set-up-in-four-steps) &nbsp;·&nbsp;
+[**Install from the Rebble App Store**](https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4) &nbsp;·&nbsp;
+[Set up in four steps](#set-up-in-four-steps) &nbsp;·&nbsp;
 [Roadmap](docs/ROADMAP.md) &nbsp;·&nbsp;
 [Connection audit](docs/CI-Integration-Audit.md) &nbsp;·&nbsp;
 [Store listing](docs/appstore-listing.md)
