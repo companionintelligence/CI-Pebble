@@ -1,0 +1,8 @@
+# rendered videos: regenerate with `ci-video render`
+out/
+# generated compositions: regenerate with `ci-video build`
+build/
+node_modules/
+# kit-owned runtime assets that `ci-video build` copies in
+assets/fonts/
+assets/vendor/

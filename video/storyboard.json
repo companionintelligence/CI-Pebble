@@ -1,0 +1,155 @@
+{
+  "$schema": "https://raw.githubusercontent.com/companionintelligence/CI-Common/main/packages/video-kit/schema/storyboard.schema.json",
+  "app": {
+    "id": "ci-pebble",
+    "name": "Companion Memory for Pebble",
+    "repo": "companionintelligence/CI-Pebble",
+    "website": "ci.computer"
+  },
+  "meta": {
+    "fps": 30,
+    "transitionSeconds": 0.5,
+    "pacing": "fit",
+    "label": "Emulator captures, sample data. No watch footage.",
+    "posterFirst": true,
+    "subtitles": "sidecar"
+  },
+  "chapters": {
+    "how": "How it works",
+    "watch": "On the watch",
+    "keeps": "Your data"
+  },
+  "scenes": [
+    {
+      "id": "open",
+      "kind": "intro",
+      "seconds": 5,
+      "minSeconds": 5,
+      "title": "Companion Memory for Pebble",
+      "caption": "Your AI remembers, because it's yours.",
+      "narration": "Your Companion Memory, on your wrist.",
+      "mark": "./assets/app-icon.png"
+    },
+    {
+      "id": "how",
+      "kind": "feature",
+      "seconds": 5,
+      "minSeconds": 5,
+      "title": "The watch never touches the network.",
+      "caption": "It asks your phone. Your phone asks the Memory you host.",
+      "narration": "The watch talks only to your phone. The phone makes one authenticated call to the Memory you host.",
+      "chapter": "how"
+    },
+    {
+      "id": "menu-ask",
+      "kind": "feature",
+      "seconds": 6,
+      "minSeconds": 6,
+      "caption": "Recall is one press. Ask offers questions, or dictation.",
+      "narration": "Recall is one press. Ask offers a list of questions, or you can speak your own on watches with a microphone.",
+      "items": [
+        {
+          "image": "./assets/plates/basalt-01-main-menu.png",
+          "alt": "Main menu with Recall, Ask and Last answer."
+        },
+        {
+          "image": "./assets/plates/basalt-02-ask.png",
+          "alt": "The Ask list, starting with Speak, Use dictation."
+        }
+      ],
+      "columns": 2,
+      "chapter": "watch"
+    },
+    {
+      "id": "answer-error",
+      "kind": "feature",
+      "seconds": 6,
+      "minSeconds": 6,
+      "caption": "Answers come back as short lines. Errors state the fix.",
+      "narration": "The answer comes back as short lines, with a buzz. When something fails, the watch states the fact and the fix.",
+      "items": [
+        {
+          "image": "./assets/plates/basalt-03-answer.png",
+          "alt": "An answer shown as short lines of saved memory."
+        },
+        {
+          "image": "./assets/plates/basalt-04-error.png",
+          "alt": "An error reading: Key rejected. Paste it again in settings."
+        }
+      ],
+      "columns": 2,
+      "chapter": "watch"
+    },
+    {
+      "id": "platforms",
+      "kind": "feature",
+      "seconds": 7,
+      "minSeconds": 7,
+      "caption": "One app on all five Pebble platforms.",
+      "narration": "The same app runs on Aplite, Basalt, Chalk, Diorite and Emery.",
+      "items": [
+        {
+          "image": "./assets/plates/aplite-03-answer.png",
+          "alt": "Answer on Aplite, black and white."
+        },
+        {
+          "image": "./assets/plates/basalt-03-answer.png",
+          "alt": "Answer on Basalt."
+        },
+        {
+          "image": "./assets/plates/chalk-03-answer.png",
+          "alt": "Answer on Chalk, round."
+        },
+        {
+          "image": "./assets/plates/diorite-03-answer.png",
+          "alt": "Answer on Diorite."
+        },
+        {
+          "image": "./assets/plates/emery-03-answer.png",
+          "alt": "Answer on Emery."
+        }
+      ],
+      "columns": {
+        "landscape": 5,
+        "portrait": 3
+      },
+      "chapter": "watch"
+    },
+    {
+      "id": "keeps",
+      "kind": "feature",
+      "seconds": 7,
+      "minSeconds": 7,
+      "title": "What stays on the watch, and what does not.",
+      "caption": "Last answer is saved on the watch. Location sync is off until you turn it on.",
+      "narration": "Your last answer stays on the watch, so it is there offline. Location sync is off until you turn it on, and there is no analytics.",
+      "chapter": "keeps",
+      "items": [
+        {
+          "label": "Last answer",
+          "value": "Saved on this watch"
+        },
+        {
+          "label": "Location sync",
+          "value": "Off by default"
+        },
+        {
+          "label": "Analytics",
+          "value": "None"
+        }
+      ],
+      "reveal": "paced"
+    },
+    {
+      "id": "close",
+      "kind": "outro",
+      "seconds": 6,
+      "minSeconds": 6,
+      "caption": "pebble.ci.computer",
+      "cta": "Recall from your wrist",
+      "tagline": "UnCloud your life.",
+      "url": "pebble.ci.computer",
+      "narration": "Recall from your wrist with Companion Memory. Visit pebble dot ci dot computer. UnCloud your life."
+    }
+  ]
+}
