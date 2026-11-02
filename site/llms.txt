@@ -1,0 +1,17 @@
+# Companion Memory for Pebble
+
+> Companion Memory for Pebble is a Pebble smartwatch app. It sends Recall and Ask requests to a Companion Memory server that you host, and shows the text it returns on your wrist. The watch talks only to your phone over Bluetooth. The phone talks to your Memory over HTTPS with an API key.
+
+Companion Memory for Pebble is part of Companion Intelligence (https://ci.computer/). Version 1.0 targets all five Pebble platforms. Speak needs a watch with a microphone. Location sync is off until you turn it on. Help: support@ci.computer.
+
+## Pages
+
+- [Home](https://pebble.ci.computer/): what the app does, how it connects, setup, API key scopes, privacy and questions
+- [Rebble App Store listing](https://apps.rebble.io/en_US/application/6ae4182fb99ed900093c95f4): install the watch app
+
+## Optional
+
+- [Source code](https://github.com/companionintelligence/CI-Pebble): project README and documentation
+- [Companion Memory](https://ci.computer/memory): the server the app talks to
+- [Docs](https://docs.ci.computer/docs/apps-available/first-party-apps/pebble-os): Pebble OS app documentation
+- [Companion Intelligence](https://ci.computer/): the platform this app belongs to

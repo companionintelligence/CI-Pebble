@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "type": "link",
+  "title": "Companion Memory for Pebble: your Memory, on your wrist",
+  "author_name": "Companion Intelligence",
+  "author_url": "https://ci.computer/",
+  "provider_name": "Companion Intelligence",
+  "provider_url": "https://ci.computer/",
+  "thumbnail_url": "https://pebble.ci.computer/assets/og-image.png",
+  "thumbnail_width": 1200,
+  "thumbnail_height": 630
+}
