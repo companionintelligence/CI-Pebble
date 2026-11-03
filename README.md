@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/companionintelligence/.github/main/profile/assets/icons/pebble.png" width="96" height="96" alt="Companion Memory for Pebble icon">
+</p>
+
 <div align="center">
 
 <picture>
