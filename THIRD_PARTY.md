@@ -1,11 +1,11 @@
 # Third-party dependencies
 
-This repository declares no third-party package dependencies — it has no
-`package.json`, `Cargo.toml`, `requirements.txt`, `pyproject.toml` or
-`pubspec.yaml` with dependency entries.
+Every direct dependency declared in this repository's manifests — both
+`dependencies` and `devDependencies` — grouped by licence, alphabetical within
+each group. Transitive dependencies are not listed; resolve them with your
+package manager's own `licenses` command.
 
-Anything this repository vendors, bundles or derives from is recorded in
-[NOTICE.md](NOTICE.md) instead.
+**0 direct dependencies.**
 
 ---
 

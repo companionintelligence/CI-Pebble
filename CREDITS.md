@@ -1,5 +1,9 @@
 # Credits
 
+Companion Intelligence is built on the work of the open-source community.
+This page names the projects we depend on directly, in rough order of how much
+of this repository stands on them.
+
 This repository declares no third-party package dependencies.
 
 Companion Intelligence is nonetheless built throughout on open-source work —
